@@ -135,6 +135,9 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC 
 # MAGIC -- Drop temporary table
 # MAGIC DROP TABLE kdd_temp;
+# MAGIC 
+# MAGIC --Refresh
+# MAGIC REFRESH TABLE kdd;
 
 # COMMAND ----------
 
@@ -201,3 +204,6 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC 
 # MAGIC -- Drop temporary table
 # MAGIC DROP TABLE kdd_unlabeled_temp;
+# MAGIC 
+# MAGIC --Refresh
+# MAGIC REFRESH TABLE kdd_unlabeled;
