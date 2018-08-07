@@ -147,8 +147,15 @@ eh_key=$(az eventhubs eventhub authorization-rule keys list \
     jq -r '.primaryKey')
 
 
-# Build .env file
+# Create storage container
+# LACE TODO Idempotent?
+az storage container create \
+    --name "$storage_container" \
+    --account-name "$storage_account" \
+    --account-key "$storage_account_key"
 
+
+# Build .env file
 echo "Appending configuration to .env file."
 cat << EOF >> $env_file
 
