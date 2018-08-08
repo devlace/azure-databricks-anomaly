@@ -3,6 +3,8 @@ azure-databricks-anomaly
 
 An anomaly detection data pipeline on Azure Databricks
 
+iForest - https://github.com/titicaca/spark-iforest
+
 Project Organization
 ------------
 
