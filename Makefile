@@ -44,6 +44,10 @@ deploy_w_docker:
 download_notebooks:
 	databricks workspace export_dir --overwrite /$(DATABRICKS_NOTEBOOKS_FOLDER) notebooks/databricks_notebooks
 
+## Downloads models
+download_models:
+	databricks fs cp --recursive --overwrite dbfs:/mnt/blob_storage/models/ models/
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete

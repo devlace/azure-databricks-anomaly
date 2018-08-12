@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.iforest.IForest","timestamp":1534085837603,"sparkVersion":"2.3.1","uid":"IForest_dcec584d110b","paramMap":{"anomalyScoreCol":"rawPrediction","bootstrap":false,"maxSamples":256.0,"maxFeatures":1.0,"contamination":0.35,"seed":123456,"numTrees":100,"maxDepth":100,"labelCol":"label","featuresCol":"features","predictionCol":"prediction"}}
