@@ -44,12 +44,20 @@ from urllib.request import urlretrieve
 
 def download_and_uncompress_gz(data_url, out_file):
   tmp_loc = '/tmp/data.gz'
+  
   # Download
   urlretrieve(data_url, tmp_loc)
+  
+  # Create dir if not exist
+  dir_path = os.path.dirname(out_file)
+  if not os.path.exists(dir_path):
+    os.makedirs(dir_path)
+    
   # Uncompress
   with gzip.open(tmp_loc, 'rb') as f_in:
     with open(out_file, 'wb') as f_out:
         shutil.copyfileobj(f_in, f_out)
+        
   # Cleanup
   os.remove(tmp_loc)
   
@@ -58,28 +66,51 @@ def download_and_uncompress_gz(data_url, out_file):
 # distributed storage layer with local file APIs
 # See here: https://docs.azuredatabricks.net/user-guide/dbfs-databricks-file-system.html#access-dbfs-using-local-file-apis
 download_and_uncompress_gz(data_url='https://archive.ics.uci.edu/ml/machine-learning-databases/kddcup99-mld/kddcup.data.gz',
-                          out_file='/dbfs' + storage_mount_path + '/kddcup.data.csv')
+                          out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.data.csv')
 
 download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/kddcup.testdata.unlabeled.gz',
-                          out_file='/dbfs' + storage_mount_path + '/kddcup.testdata.unlabeled.csv')
+                          out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.testdata.unlabeled.csv')
 
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC # Create tables
+# MAGIC # Prepare Streaming Data
+
+# COMMAND ----------
+
+from pyspark.sql.functions import monotonically_increasing_id, lit, concat
+
+raw_df = spark.read.csv(storage_mount_path + '/data/raw/kddcup.data.csv')
+raw_unlabeled_df = spark.read.csv(storage_mount_path + '/data/raw/kddcup.testdata.unlabeled.csv')
+
+# Add id
+df = raw_df.withColumn('id', concat(lit('A'), monotonically_increasing_id()))\
+  .select(['id'] + raw_df.columns)\
+  .repartition(20)
+unlabeled_df = raw_unlabeled_df.withColumn('id', concat(lit('B'), monotonically_increasing_id()))\
+  .select(['id'] + raw_unlabeled_df.columns)\
+  .repartition(20)
+
+# Write out to csv
+df.write.csv(storage_mount_path + '/data/for_streaming/kddcup.data/', mode='overwrite')
+unlabeled_df.write.csv(storage_mount_path + '/data/for_streaming/kddcup.testdata.unlabeled/', mode='overwrite')
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Create KDD Table
+# MAGIC # Create SparkSQL tables
 
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC ------------------
+# MAGIC -- Create KDD Table
+# MAGIC 
 # MAGIC DROP TABLE IF EXISTS kdd_temp;
 # MAGIC CREATE TABLE kdd_temp
 # MAGIC (
+# MAGIC   id STRING,
 # MAGIC   duration FLOAT,
 # MAGIC   protocol_type STRING,
 # MAGIC   service STRING,
@@ -124,7 +155,7 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC   label STRING
 # MAGIC )
 # MAGIC USING CSV
-# MAGIC LOCATION '/mnt/blob_storage/kddcup.data.csv'
+# MAGIC LOCATION '/mnt/blob_storage/data/for_streaming/kddcup.data/'
 # MAGIC OPTIONS ("header"="false");
 # MAGIC 
 # MAGIC -- LACE: TODO, convert to databricks delta
@@ -138,18 +169,20 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC 
 # MAGIC --Refresh
 # MAGIC REFRESH TABLE kdd;
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Create Unlablled KDD table
+# MAGIC 
+# MAGIC --select
+# MAGIC SELECT * FROM kdd LIMIT 100;
 
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC ------------------
+# MAGIC -- Create KDD_unlabelled Table
+# MAGIC 
 # MAGIC DROP TABLE IF EXISTS kdd_unlabeled_temp;
 # MAGIC CREATE TABLE kdd_unlabeled_temp
 # MAGIC (
+# MAGIC   id STRING,
 # MAGIC   duration FLOAT,
 # MAGIC   protocol_type STRING,
 # MAGIC   service STRING,
@@ -193,7 +226,7 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC   dst_host_srv_rerror_rate FLOAT
 # MAGIC )
 # MAGIC USING CSV
-# MAGIC LOCATION '/mnt/blob_storage/kddcup.testdata.unlabeled.csv'
+# MAGIC LOCATION '/mnt/blob_storage/data/for_streaming/kddcup.testdata.unlabeled/'
 # MAGIC OPTIONS ("header"="false");
 # MAGIC 
 # MAGIC -- LACE: TODO, convert to databricks delta
@@ -207,3 +240,6 @@ download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/k
 # MAGIC 
 # MAGIC --Refresh
 # MAGIC REFRESH TABLE kdd_unlabeled;
+# MAGIC 
+# MAGIC --Select
+# MAGIC SELECT * FROM kdd_unlabeled LIMIT 100;
