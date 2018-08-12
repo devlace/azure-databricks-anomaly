@@ -1,14 +1,15 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3
+.PHONY: clean data lint requirements deploy_resources deploy deploy_w_docker download_notebooks
 
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
 PROFILE = default
 PROJECT_NAME = azure-databricks-anomaly
 PYTHON_INTERPRETER = python3
+DOCKER_DEPLOY_CONTAINER = devlace/azdatabricksanomaly
+DATABRICKS_NOTEBOOKS_FOLDER = anomaly
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -36,12 +37,12 @@ deploy: deploy_resources data
 
 ## Deploys entire solutions using Docker
 deploy_w_docker:
-	docker build -t devlace/azdatabricksanomaly -f deploy/Dockerfile .
-	docker run -it devlace/azdatabricksanomaly
+	docker build -t $(DOCKER_DEPLOY_CONTAINER) -f deploy/Dockerfile .
+	docker run -it $(DOCKER_DEPLOY_CONTAINER)
 
-## Download notebooks locally
+## Download notebooks in anomaly workspace folder locally
 download_notebooks:
-	
+	databricks workspace export_dir --overwrite /$(DATABRICKS_NOTEBOOKS_FOLDER) notebooks/databricks_notebooks
 
 ## Delete all compiled Python files
 clean:
