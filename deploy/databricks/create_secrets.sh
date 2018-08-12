@@ -18,4 +18,5 @@ databricks secrets write --scope "$scope_name" --key "storage_account" --string-
 databricks secrets write --scope "$scope_name" --key "storage_key" --string-value  "$BLOB_STORAGE_KEY"
 databricks secrets write --scope "$scope_name" --key "eventhub_namespace" --string-value  "$EVENTHUB_NAMESPACE"
 databricks secrets write --scope "$scope_name" --key "eventhub" --string-value  "$EVENTHUB"
-databricks secrets write --scope "$scope_name" --key "eventhub_key" --string-value  "$EVENTHUB_KEY"
+databricks secrets write --scope "$scope_name" --key "eventhub_send_key" --string-value  "$EVENTHUB_SEND_KEY"
+databricks secrets write --scope "$scope_name" --key "eventhub_listen_key" --string-value  "$EVENTHUB_LISTEN_KEY"

@@ -39,6 +39,10 @@ deploy_w_docker:
 	docker build -t devlace/azdatabricksanomaly -f deploy/Dockerfile .
 	docker run -it devlace/azdatabricksanomaly
 
+## Download notebooks locally
+download_notebooks:
+	
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete

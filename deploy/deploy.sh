@@ -63,6 +63,8 @@ rg_name="${1-}"
 rg_location="${2-}"
 sub_id="${3-}"
 
+storage_container=databricks #fixed
+
 while [[ -z $rg_name ]]; do
     read -rp "$(echo -e ${ORANGE}"Enter Resource Group name: "${NC})" rg_name
 done
@@ -138,10 +140,17 @@ storage_account_key=$(az storage account keys list \
 # Retrieve eventhub details
 ehns_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubsNsName.value')
 eh_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubName.value')
-eh_key=$(az eventhubs eventhub authorization-rule keys list \
+eh_send_key=$(az eventhubs eventhub authorization-rule keys list \
     --namespace-name $ehns_name \
     --eventhub-name $eh_name \
-    --name manage \
+    --name send \
+    --resource-group $rg_name \
+    --output json |
+    jq -r '.primaryKey')
+eh_listen_key=$(az eventhubs eventhub authorization-rule keys list \
+    --namespace-name $ehns_name \
+    --eventhub-name $eh_name \
+    --name listen \
     --resource-group $rg_name \
     --output json |
     jq -r '.primaryKey')
@@ -164,7 +173,8 @@ BLOB_STORAGE_ACCOUNT=${storage_account}
 BLOB_STORAGE_KEY=${storage_account_key}
 EVENTHUB_NAMESPACE=${ehns_name}
 EVENTHUB=${eh_name}
-EVENTHUB_KEY=${eh_key}
+EVENTHUB_SEND_KEY=${eh_send_key}
+EVENTHUB_LISTEN_KEY=${eh_listen_key}
 DBRICKS_DOMAIN=${dbricks_location}.azuredatabricks.net
 DBRICKS_TOKEN=${dbi_token}
 

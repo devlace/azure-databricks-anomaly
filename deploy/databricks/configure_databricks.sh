@@ -89,7 +89,7 @@ _main() {
 
     # Upload notebooks
     echo "Uploading notebooks..."
-    databricks workspace import_dir "../../notebooks/notebooks" "/anomaly" --overwrite
+    databricks workspace import_dir "../../notebooks/databricks_notebooks" "/anomaly" --overwrite
     
     # TODO:
     # # , mount storage and setup up tables
