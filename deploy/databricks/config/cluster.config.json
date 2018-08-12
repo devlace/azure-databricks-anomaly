@@ -4,7 +4,7 @@
         "min_workers": 1,
         "max_workers": 4
     },
-    "spark_version": "4.2.x-scala2.11",
+    "spark_version": "4.3.x-scala2.11",
     "spark_env_vars": {
       "PYSPARK_PYTHON": "/databricks/python3/bin/python3"
     },

@@ -38,6 +38,7 @@ RED='\033[0;31m'
 ORANGE='\033[0;33m'
 NC='\033[0m'
 
+cluster_config="./config/cluster.config.json"
 
 wait_for_run () {
     # See here: https://docs.azuredatabricks.net/api/latest/jobs.html#jobsrunresultstate
@@ -91,33 +92,27 @@ _main() {
     echo "Uploading notebooks..."
     databricks workspace import_dir "../../notebooks/databricks_notebooks" "/anomaly" --overwrite
     
-    # TODO:
-    # # , mount storage and setup up tables
-    # echo "Mounting blob storage. This may take a while as cluster spins up..."
-    # wait_for_run $(databricks runs submit --json-file "./config/run.mountstorage.config.json" | jq -r ".run_id" )
-    # echo "Setting up tables. This may take a while as cluster spins up..."
-    # wait_for_run $(databricks runs submit --json-file "./config/run.setuptables.config.json" | jq -r ".run_id" )
-    # echo "Training initial model. This may take a while as cluster spins up..."
-    # wait_for_run $(databricks runs submit --json-file "./config/run.trainmodel.config.json" | jq -r ".run_id" )
+    # Setup workspace
+    echo "Setting up Databricks workspace. This may take a while as cluster spins up..."
+    wait_for_run $(databricks runs submit --json-file "./config/run.setup.config.json" | jq -r ".run_id" )
 
     # # Schedule and run jobs
     # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.scoremodel.config.json" | jq ".job_id")
     # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.refitmodel.config.json" | jq ".job_id")
     # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.ingestdata.config.json" | jq ".job_id")
 
-    # # Create initial cluster, if not yet exists
-    # cluster_config="./config/cluster.config.json"
-    # cluster_name=$(cat $cluster_config | jq -r ".cluster_name")
-    # if cluster_exists $cluster_name; then 
-    #     echo "Cluster ${cluster_name} already exists!"
-    # else
-    #     echo "Creating cluster ${cluster_name}..."
-    #     databricks clusters create --json-file $cluster_config
-    # fi
+    # Create initial cluster, if not yet exists
+    cluster_name=$(cat $cluster_config | jq -r ".cluster_name")
+    if cluster_exists $cluster_name; then 
+        echo "Cluster ${cluster_name} already exists!"
+    else
+        echo "Creating cluster ${cluster_name}..."
+        databricks clusters create --json-file $cluster_config
+    fi
 
-    # # Attach library
-    # cluster_id=$(databricks clusters list | awk '/'$cluster_name'/ {print $1}')
-    # databricks libraries install --maven-coordinates com.microsoft.azure:azure-eventhubs-spark_2.11:2.3.2 --cluster-id $cluster_id
+    # Install Library
+    cluster_id=$(databricks clusters list | awk '/'$cluster_name'/ {print $1}')
+    databricks libraries install --maven-coordinates com.microsoft.azure:azure-eventhubs-spark_2.11:2.3.2 --cluster-id $cluster_id
 
 }
 
