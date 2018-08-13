@@ -1,6 +1,6 @@
 // Databricks notebook source
 import org.apache.spark.eventhubs.{ ConnectionStringBuilder, EventHubsConf, EventPosition }
-import org.apache.spark.sql.functions.{ explode, split }
+import org.apache.spark.sql.functions.{ explode, split, to_json, struct }
 import org.apache.spark.sql.streaming.Trigger.ProcessingTime
 
 // Retrieve storage credentials
@@ -22,8 +22,6 @@ val eventHubsConf = EventHubsConf(connectionString)
   .setStartingPosition(EventPosition.fromEndOfStream)
 
 // COMMAND ----------
-
-import org.apache.spark.sql.functions.{to_json, struct}
 
 val kdd_schema = spark.read.table("kdd_unlabeled").schema
 val kdd_unlabeled_df = spark

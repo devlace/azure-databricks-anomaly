@@ -50,21 +50,36 @@ messages.printSchema
 
 var messageTransformed = 
   messages
-  .select(get_json_object($"Body", "$.duration").cast(FloatType).alias("duration"),
-          get_json_object($"Body", "$.protocol_type").cast(StringType).alias("protocol_type"), 
-          get_json_object($"Body", "$.service").cast(StringType).alias("service"), 
-          get_json_object($"Body", "$.src_bytes").cast(FloatType).alias("src_bytes"), 
-          get_json_object($"Body", "$.dst_bytes").cast(FloatType).alias("dst_bytes"), 
-          get_json_object($"Body", "$.flag").cast(StringType).alias("flag"),
-          get_json_object($"Body", "$.land").cast(ShortType).alias("land"),
-          get_json_object($"Body", "$.wrong_fragment").cast(FloatType).alias("wrong_fragment"),
-          get_json_object($"Body", "$.urgent").cast(FloatType).alias("urgent"),
-          $"Timestamp")
+  .select(
+    get_json_object($"Body", "$.id").cast(StringType).alias("id"),
+    get_json_object($"Body", "$.duration").cast(FloatType).alias("duration"),
+    get_json_object($"Body", "$.protocol_type").cast(StringType).alias("protocol_type"), 
+    get_json_object($"Body", "$.service").cast(StringType).alias("service"), 
+    get_json_object($"Body", "$.src_bytes").cast(FloatType).alias("src_bytes"), 
+    get_json_object($"Body", "$.dst_bytes").cast(FloatType).alias("dst_bytes"), 
+    get_json_object($"Body", "$.flag").cast(StringType).alias("flag"),
+    get_json_object($"Body", "$.land").cast(ShortType).alias("land"),
+    get_json_object($"Body", "$.wrong_fragment").cast(FloatType).alias("wrong_fragment"),
+    get_json_object($"Body", "$.urgent").cast(FloatType).alias("urgent"),
+    $"Timestamp")
+
+// Join with static table
+val kdd_unlabeled = spark.read.table("kdd_unlabeled")
+val messageAll = messageTransformed
+  .join(kdd_unlabeled, messageTransformed("id") === kdd_unlabeled("id"), "left_outer")
 
 // COMMAND ----------
 
-// Output
-var query = messageTransformed
+import org.apache.spark.ml.iforest.IForest
+import org.apache.spark.ml.tuning.CrossValidatorModel
+
+val model = CrossValidatorModel.load("/mnt/blob_storage/models/iForest")
+val predictions = model.transform(kdd_unlabeled)
+
+// COMMAND ----------
+
+// Output to console
+var query = predictions
   .writeStream
   .outputMode("append")
   .format("console")

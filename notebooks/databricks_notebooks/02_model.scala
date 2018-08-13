@@ -99,7 +99,7 @@ val cvModel = cv.fit(training)
 
 // COMMAND ----------
 
-cvModel.save("/mnt/blob_storage/models/iForest/")
+cvModel.save("/mnt/blob_storage/models/iForest2/")
 
 // COMMAND ----------
 

@@ -92,6 +92,10 @@ _main() {
     echo "Uploading notebooks..."
     databricks workspace import_dir "../../notebooks/databricks_notebooks" "/anomaly" --overwrite
     
+    # Upload models
+    echo "Uploading pre-trained models..."
+    databricks fs cp --recursive --overwrite models/ dbfs:/mnt/blob_storage/models/
+
     # Setup workspace
     echo "Setting up Databricks workspace. This may take a while as cluster spins up..."
     wait_for_run $(databricks runs submit --json-file "./config/run.setup.config.json" | jq -r ".run_id" )
