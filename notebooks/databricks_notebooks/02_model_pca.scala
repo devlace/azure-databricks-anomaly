@@ -126,6 +126,13 @@ val anomalyScore = pcaResult
   .withColumn("reconstruction", reconstructionUdf(col("pca_features")))
   .withColumn("anomaly_score", anomalyScoreUdf(col("norm_features"), col("reconstruction")))
 
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Normalize Anomaly Score
+
+// COMMAND ----------
+
 // Vectorize Anomaly Score
 val anomalyAssembler = new VectorAssembler()
   .setInputCols(Array("anomaly_score"))
@@ -170,19 +177,7 @@ var auc = evaluator.evaluate(predictions)
 
 // COMMAND ----------
 
-// import breeze.linalg.DenseVector
-// import org.apache.spark.ml.linalg.Vector
-// import org.apache.spark.sql.functions._
 
-// val distance = udf[Double, Vector] { v =>
-//   val vB = DenseVector(v.toArray)
-//   vB.t * vB
-// }
-
-// val results = transformedTrainingData
-//   .withColumn("distance", distance(transformedTrainingData("pca_features")))
-
-// display(results)
 
 // COMMAND ----------
 
@@ -191,12 +186,16 @@ var auc = evaluator.evaluate(predictions)
 
 // COMMAND ----------
 
+package org.apache.spark.ml.feature
+
+import org.apache.hadoop.fs.Path
+
 import org.apache.spark.ml._
 import org.apache.spark.ml.linalg._
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared._
 import org.apache.spark.ml.util._
-import org.apache.spark.ml.feature.{PCA, PCAModel}
+// import org.apache.spark.ml.feature.{PCA, PCAModel}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
@@ -270,16 +269,14 @@ object PCAAnomaly extends DefaultParamsReadable[PCAAnomaly] {
 /**
  * Model fitted by [[PCAAnomaly]]. Uses PCA to detect anomalies
  *
- * @param pc A principal components Matrix. Each column is one principal component.
- * @param explainedVariance A vector of proportions of variance explained by
- *                          each principal component.
+ * @param pcaModel A PCA model
  */
 class PCAAnomalyModel (
-    override val uid: String,
-    val pcaModel: PCAModel)
+  override val uid: String, 
+  val pcaModel: PCAModel)
   extends Model[PCAAnomalyModel] with PCAAnomalyParams with MLWritable {
 
-  //import PCAAnomalyModel._
+  import PCAAnomalyModel._
 
   /** @group setParam */
   def setInputCol(value: String): this.type = set(inputCol, value)
@@ -291,7 +288,7 @@ class PCAAnomalyModel (
    * Transform a vector by computed Principal Components.
    *
    * @note Vectors to be transformed must be the same length as the source vectors given
-   * to `PCA.fit()`.
+   * to `PCAAnomaly.fit()`.
    */
   override def transform(dataset: Dataset[_]): DataFrame = {
     transformSchema(dataset.schema, logging = true)
@@ -321,64 +318,47 @@ class PCAAnomalyModel (
     copyValues(copied, extra).setParent(parent)
   }
 
-  override def write: MLWriter = ??? //new PCAModelWriter(this)
+  override def write: MLWriter = new PCAAnomalyModelWriter(this)
 }
 
-// object PCAModel extends MLReadable[PCAModel] {
+object PCAAnomalyModel extends MLReadable[PCAAnomalyModel] {
 
-//   private[PCAModel] class PCAModelWriter(instance: PCAModel) extends MLWriter {
+  private[PCAAnomalyModel] class PCAAnomalyModelWriter(instance: PCAAnomalyModel) extends MLWriter {
+    override protected def saveImpl(path: String): Unit = {
+      DefaultParamsWriter.saveMetadata(instance, path, sc)
+      val pcaPath = new Path(path, "pca").toString
+      instance.pcaModel.save(pcaPath)
+    }
+  }
 
-//     private case class Data(pc: DenseMatrix, explainedVariance: DenseVector)
+  private class PCAAnomalyModelReader extends MLReader[PCAAnomalyModel] {
 
-//     override protected def saveImpl(path: String): Unit = {
-//       DefaultParamsWriter.saveMetadata(instance, path, sc)
-//       val data = Data(instance.pc, instance.explainedVariance)
-//       val dataPath = new Path(path, "data").toString
-//       sparkSession.createDataFrame(Seq(data)).repartition(1).write.parquet(dataPath)
-//     }
-//   }
+    private val className = classOf[PCAAnomalyModel].getName
 
-//   private class PCAModelReader extends MLReader[PCAModel] {
+    /**
+     * Loads a [[PCAAnomalyModel]] from data located at the input path.
+     *
+     * @param path path to serialized model data
+     * @return a [[PCAAnomalyModel]]
+     */
+    override def load(path: String): PCAAnomalyModel = {
+      val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
+      val pcaPath = new Path(path, "pca").toString
+      val pcaModel = PCAModel.load(pcaPath)
+      new PCAAnomalyModel(metadata.uid, pcaModel)
+    }
+  }
 
-//     private val className = classOf[PCAAnomalyModel].getName
+  override def read: MLReader[PCAAnomalyModel] = new PCAAnomalyModelReader
 
-//     /**
-//      * Loads a [[PCAAnomalyModel]] from data located at the input path. Note that the model includes an
-//      * `explainedVariance` member that is not recorded by Spark 1.6 and earlier. A model
-//      * can be loaded from such older data but will have an empty vector for
-//      * `explainedVariance`.
-//      *
-//      * @param path path to serialized model data
-//      * @return a [[PCAModel]]
-//      */
-//     override def load(path: String): PCAAnomalyModel = {
-//       val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
+  override def load(path: String): PCAAnomalyModel = super.load(path)
+}
 
-//       val dataPath = new Path(path, "data").toString
-//       val model = if (majorVersion(metadata.sparkVersion) >= 2) {
-//         val Row(pc: DenseMatrix, explainedVariance: DenseVector) =
-//           sparkSession.read.parquet(dataPath)
-//             .select("pc", "explainedVariance")
-//             .head()
-//         new PCAModel(metadata.uid, pc, explainedVariance)
-//       } else {
-//         // pc field is the old matrix format in Spark <= 1.6
-//         // explainedVariance field is not present in Spark <= 1.6
-//         val Row(pc: OldDenseMatrix) = sparkSession.read.parquet(dataPath).select("pc").head()
-//         new PCAModel(metadata.uid, pc.asML,
-//           Vectors.dense(Array.empty[Double]).asInstanceOf[DenseVector])
-//       }
-//       metadata.getAndSetParams(model)
-//       model
-//     }
-//   }
 
-//   override def read: MLReader[PCAAnomalyModel] = new PCAAnomalyModelReader
-
-//   override def load(path: String): PCAAnomalyModel = super.load(path)
-// }
 
 // COMMAND ----------
+
+import org.apache.spark.ml.feature.PCAAnomaly
 
 // Fit PCA model
 val pcaAnomaly = new PCAAnomaly()
@@ -397,109 +377,20 @@ display(pcaResult)
 
 // COMMAND ----------
 
-import org.apache.spark.ml.Transformer
-import org.apache.spark.ml.param.{Param, ParamMap}
-import org.apache.spark.sql.{DataFrame, Dataset}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, explode, udf}
-import org.apache.spark.sql.types.{DataTypes, StructType}
+pcaAnomaly.save("/mnt/blob_storage/models/PCAAnomalyModel")
 
-/**
- * An example demonstrating how to write a custom Transformer in a 3rd-party application.
- * This example intentionally avoids using any private Spark APIs.
- *
- * @param uid  All types inheriting from `Identifiable` require a `uid`.
- *             This includes Transformers, Estimators, and Models.
- */
-class PCAAnomaly(override val uid: String) extends Transformer {
+// COMMAND ----------
 
-  // Transformer Params
-  // Defining a Param requires 3 elements:
-  //  - Param definition
-  //  - Param getter method
-  //  - Param setter method
-  // (The getter and setter are technically not required, but they are nice standards to follow.)
+// Pipeline
 
-  /**
-   * Param for input column name.
-   */
-  final val inputCol: Param[String] = new Param[String](this, "inputCol", "input column name")
-  final def getInputCol: String = $(inputCol)
-  final def setInputCol(value: String): PCAAnomaly = set(inputCol, value)
+val pcaAnom = new PCAAnomaly()
+  .setInputCol("norm_features")
+  .setOutputPCACol("pca_features")  
+  .setOutputCol("anomaly_score")
+  .setK(3)
 
-  /**
-   * Param for output column name.
-   */
-  final val outputCol: Param[String] = new Param[String](this, "outputCol", "output column name")
-  final def getOutputCol: String = $(outputCol)
-  final def setOutputCol(value: String): PCAAnomaly = set(outputCol, value)
+val mainPipeline = new Pipeline()
+  .setStages(indexers ++ Array(encoder, labelIndexer, assembler, standardScalar, pcaAnom, anomalyAssembler, anomalyScoreScalar))
 
-  // (Optional) You can set defaults for Param values if you like.
-  setDefault(inputCol -> "myInputCol", outputCol -> "myOutputCol")
-
-  // Transformer requires 3 methods:
-  //  - transform
-  //  - transformSchema
-  //  - copy
-
-  // Our flatMap will split strings by commas.
-  private val myFlatMapFunction: String => Seq[String] = { input: String =>
-    input.split(",")
-  }
-
-  /**
-   * This method implements the main transformation.
-   * Its required semantics are fully defined by the method API: take a Dataset or DataFrame,
-   * and return a DataFrame.
-   *
-   * Most Transformers are 1-to-1 row mappings which add one or more new columns and do not
-   * remove any columns.  However, this restriction is not required.  This example does a flatMap,
-   * so we could either (a) drop other columns or (b) keep other columns, making copies of values
-   * in each row as it expands to multiple rows in the flatMap.  We do (a) for simplicity.
-   */
-  override def transform(dataset: Dataset[_]): DataFrame = {
-    val flatMapUdf = udf(myFlatMapFunction)
-    dataset.select(explode(flatMapUdf(col($(inputCol)))).as($(outputCol)))
-  }
-
-  /**
-   * Check transform validity and derive the output schema from the input schema.
-   *
-   * We check validity for interactions between parameters during `transformSchema` and
-   * raise an exception if any parameter value is invalid. Parameter value checks which
-   * do not depend on other parameters are handled by `Param.validate()`.
-   *
-   * Typical implementation should first conduct verification on schema change and parameter
-   * validity, including complex parameter interaction checks.
-   */
-  override def transformSchema(schema: StructType): StructType = {
-    // Validate input type.
-    // Input type validation is technically optional, but it is a good practice since it catches
-    // schema errors early on.
-    val actualDataType = schema($(inputCol)).dataType
-    require(actualDataType.equals(DataTypes.StringType),
-      s"Column ${$(inputCol)} must be StringType but was actually $actualDataType.")
-
-    // Compute output type.
-    // This is important to do correctly when plugging this Transformer into a Pipeline,
-    // where downstream Pipeline stages may expect use this Transformer's output as their input.
-    DataTypes.createStructType(
-      Array(
-        DataTypes.createStructField($(outputCol), DataTypes.StringType, false)
-      )
-    )
-  }
-
-  /**
-   * Creates a copy of this instance.
-   * Requirements:
-   *  - The copy must have the same UID.
-   *  - The copy must have the same Params, with some possibly overwritten by the `extra`
-   *    argument.
-   *  - This should do a deep copy of any data members which are mutable.  That said,
-   *    Transformers should generally be immutable (except for Params), so the `defaultCopy`
-   *    method often suffices.
-   * @param extra  Param values which will overwrite Params in the copy.
-   */
-  override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
-}
+val mainResult = mainPipeline.fit(training)
+  
