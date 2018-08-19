@@ -30,7 +30,7 @@ val storage_mount_path = "/mnt/blob_storage"
 val data_path = "/mnt/blob_storage/data/for_streaming"
 
 // Load model
-val model = PipelineModel.load(s"$storage_mount_path/models/MainPCAAnomalyModel")
+val model = PipelineModel.load(s"$storage_mount_path/models/PCAAnomalyModel")
 
 // Setup EH connection
 val dataEhConnectionString = ConnectionStringBuilder()
@@ -141,20 +141,26 @@ val anomalies = model
 
 // COMMAND ----------
 
-// Output to console
-var query = anomalies
-  .select("id", "norm_anomaly_score") //filter for easy viewing
-  .writeStream
-  .outputMode("append")
-  .format("console")
-  .option("truncate", false)
-  .start()
-query.awaitTermination()
+// // Output to console
+// var query = anomalies
+//   .select("id", "norm_anomaly_score") //filter for easy viewing
+//   .writeStream
+//   .outputMode("append")
+//   .format("console")
+//   .option("truncate", false)
+//   .start()
+// query.awaitTermination()
 
 // COMMAND ----------
 
+// Wrap in body tag
+val anomalies_wrapper = anomalies.select(to_json(
+  struct(
+    $"id",
+    $"norm_anomaly_score")).alias("body"))
+
 val query =
-  anomalies
+  anomalies_wrapper
     .writeStream
     .format("eventhubs")
     .outputMode("update")
@@ -162,3 +168,7 @@ val query =
     .trigger(ProcessingTime("25 seconds"))
     .option("checkpointLocation", s"$data_path/checkpoints/anomalies/")
     .start()
+
+// COMMAND ----------
+
+println(query.lastProgress)

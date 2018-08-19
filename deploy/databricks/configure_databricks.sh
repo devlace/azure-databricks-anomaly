@@ -97,13 +97,17 @@ _main() {
     # databricks fs cp --recursive --overwrite models/ dbfs:/mnt/blob_storage/models/
 
     # Setup workspace
-    echo "Setting up Databricks workspace. This may take a while as cluster spins up..."
-    wait_for_run $(databricks runs submit --json-file "./config/run.setup.config.json" | jq -r ".run_id" )
+    echo "Downloading data. This may take a while as cluster spins up..."
+    wait_for_run $(databricks runs submit --json-file "./config/run.downloaddata.config.json" | jq -r ".run_id" )
+    echo "Performing initial ETL of data. This may take a while as cluster spins up..."
+    wait_for_run $(databricks runs submit --json-file "./config/run.etl.config.json" | jq -r ".run_id" )
+    echo "Training anomaly model. This may take a while as cluster spins up..."
+    wait_for_run $(databricks runs submit --json-file "./config/run.trainmodel.config.json" | jq -r ".run_id" )
 
-    # # Schedule and run jobs
-    # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.scoremodel.config.json" | jq ".job_id")
-    # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.refitmodel.config.json" | jq ".job_id")
-    # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.ingestdata.config.json" | jq ".job_id")
+    # Schedule and run jobs
+    databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamdatagen.config.json" | jq ".job_id")
+    databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamscoring.config.json" | jq ".job_id")
+    databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.batchscoring.config.json" | jq ".job_id")
 
     # Create initial cluster, if not yet exists
     cluster_name=$(cat $cluster_config | jq -r ".cluster_name")

@@ -209,7 +209,6 @@ val Array(training, test) = transformed_df.randomSplit(Array(0.8, 0.2), seed = 1
 
 // COMMAND ----------
 
-
 // Indexers
 val indexers = categoricalFeatures.map({ colName =>
   new StringIndexer().setInputCol(colName).setOutputCol(colName + "_index").setHandleInvalid("keep")
@@ -255,6 +254,8 @@ val anomalyScoreScalar = new MinMaxScaler()
   .setInputCol("anomaly_score_vec")
   .setOutputCol("norm_anomaly_score_vec")
 
+// COMMAND ----------
+
 // Pipeline
 val mainPipeline = new Pipeline()
   .setStages(indexers ++ 
@@ -268,7 +269,7 @@ val mainPipelineModel = mainPipeline.fit(training)
 mainPipelineModel
   .write
   .overwrite
-  .save("mnt/blob_storage/models/MainPCAAnomalyModel")
+  .save("mnt/blob_storage/models/PCAAnomalyModel")
 
 // COMMAND ----------
 
@@ -277,9 +278,14 @@ mainPipelineModel
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC #### Using training data
+
+// COMMAND ----------
+
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 
-val model = PipelineModel.load("/mnt/blob_storage/models/MainPCAAnomalyModel")
+val model = PipelineModel.load("/mnt/blob_storage/models/PCAAnomalyModel")
 
 val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
 
@@ -292,17 +298,26 @@ display(transformedTraining)
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC #### Using test data
+
+// COMMAND ----------
+
 val transformedTest = mainPipelineModel.transform(test)
   .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
   .select("label", "norm_anomaly_score")
   .cache()
 
-display(transformedTest)
+// COMMAND ----------
+
+display(transformedTest
+        .filter(col("label") === 0)
+        .withColumn("log_anom_score", ))
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ## Evaluate Model
+// MAGIC ## Evaluate Model using Test data
 
 // COMMAND ----------
 

@@ -4,18 +4,18 @@ import org.apache.spark.sql.functions.{ explode, split, to_json, struct }
 import org.apache.spark.sql.streaming.Trigger.ProcessingTime
 
 // Retrieve storage credentials
-val eh_namespace = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_namespace")
-val eh_name = dbutils.secrets.get(scope = "storage_scope", key = "eventhub")
-val eh_send_key = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_send_key")
+val ehNamespace = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_namespace")
+val ehData = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_data_name")
+val ehDataSendKey = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_data_send_key")
 
 // Set data path
 val data_path = "/mnt/blob_storage/data/for_streaming"
 
 val connectionString = ConnectionStringBuilder()
-  .setNamespaceName(eh_namespace)
-  .setEventHubName(eh_name)
+  .setNamespaceName(ehNamespace)
+  .setEventHubName(ehData)
   .setSasKeyName("send")
-  .setSasKey(eh_send_key)
+  .setSasKey(ehDataSendKey)
   .build
 
 val eventHubsConf = EventHubsConf(connectionString)
