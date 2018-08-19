@@ -13,11 +13,9 @@ import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared._
 import org.apache.spark.ml.util._
 // import org.apache.spark.ml.feature.{PCA, PCAModel}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType, DoubleType}
-import org.apache.spark.mllib.linalg.VectorUDT
 
 import breeze.linalg.{DenseVector, sum}
 import breeze.numerics.pow
@@ -27,9 +25,9 @@ import breeze.numerics.pow
  * Params for [[PCAAnomaly]] and [[PCAAnomalyModel]].
  */
 trait PCAAnomalyParams extends Params with HasInputCol with HasOutputCol {
-  //final val inputCol= new Param[String](this, "inputCol", "The input column")
-  //final val outputCol = new Param[String](this, "outputCol", "The output column")
   final val outputPCACol = new Param[String](this, "outputPCACol", "The output column with PCA features")
+  setDefault(outputPCACol, "pca_features")
+  
   final val k: IntParam = new IntParam(this, "k", "the number of principal components (> 0)",
     ParamValidators.gt(0))
   
@@ -125,7 +123,7 @@ class PCAAnomalyModel (
       val error = sum(pow(diff, 2))
       error
     })
-    val result = pcaResults.withColumn($(outputCol), anomalyScoreUdf(col($(inputCol)), col($(outputPCACol)))).cache()
+    val result = pcaResults.withColumn($(outputCol), anomalyScoreUdf(col($(inputCol)), col($(outputPCACol))))
     result
   }
 
@@ -165,7 +163,9 @@ object PCAAnomalyModel extends MLReadable[PCAAnomalyModel] {
       val metadata = DefaultParamsReader.loadMetadata(path, sc, className)
       val pcaPath = new Path(path, "pca").toString
       val pcaModel = PCAModel.load(pcaPath)
-      new PCAAnomalyModel(metadata.uid, pcaModel)
+      val model = new PCAAnomalyModel(metadata.uid, pcaModel)
+      DefaultParamsReader.getAndSetParams(model, metadata)
+      model
     }
   }
 
@@ -265,13 +265,25 @@ val mainPipeline = new Pipeline()
 val mainPipelineModel = mainPipeline.fit(training)
 
 // Save pipeline
-mainPipelineModel.save("mnt/blob_storage/models/MainPCAAnomalyModel")
+mainPipelineModel
+  .write
+  .overwrite
+  .save("mnt/blob_storage/models/MainPCAAnomalyModel")
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC ## Use Model to predict anomalies
+
+// COMMAND ----------
+
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+
+val model = PipelineModel.load("/mnt/blob_storage/models/MainPCAAnomalyModel")
+
 val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
 
-val transformedTraining = mainPipelineModel.transform(training)
+val transformedTraining = model.transform(training)
   .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
   .select("label", "norm_anomaly_score")
   .cache()
@@ -286,3 +298,24 @@ val transformedTest = mainPipelineModel.transform(test)
   .cache()
 
 display(transformedTest)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Evaluate Model
+
+// COMMAND ----------
+
+import  org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+
+val evaluator = new BinaryClassificationEvaluator()
+  .setMetricName("areaUnderROC")
+  .setLabelCol("label")
+  .setRawPredictionCol("norm_anomaly_score")
+
+evaluator.evaluate(transformedTraining)
+
+
+// COMMAND ----------
+
+evaluator.evaluate(transformedTest)

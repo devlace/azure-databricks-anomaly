@@ -1,11 +1,37 @@
 azure-databricks-anomaly
 ==============================
 
+# Introduction
+
 An anomaly detection data pipeline on Azure Databricks
 
+# Architecture
+![Architecture](images/archi.PNG?raw=true "Architecture")
+
+# Spark Pipeline Model
+LACE: TODO
+
+# Deployment
+You can use the following docker container to deploy the solution:
+- `docker run -it devlace/azdatabricksanomaly`
+
+Or, alternatively, build and run the container locally with:
+- `make deploy_w_docker`
+
+## For local deployment w/o Docker
+Ensure you are in the root of the repository and logged in to the Azure cli by running `az login`.
+
+### Requirements
+
+- [Azure CLI 2.0](https://azure.github.io/projects/clis/)
+- [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/) or [Anaconda](https://anaconda.org/anaconda/python)
+- [jq tool](https://stedolan.github.io/jq/download/)
+- Check the requirements.txt for list of necessary Python packages. (will be installed by `make requirements`)
+
+# Data
 iForest - https://github.com/titicaca/spark-iforest
 
-Project Organization
+# Project Organization
 ------------
 
     ├── LICENSE

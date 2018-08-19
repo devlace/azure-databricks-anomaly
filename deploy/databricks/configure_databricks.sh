@@ -93,8 +93,8 @@ _main() {
     databricks workspace import_dir "../../notebooks/databricks_notebooks" "/anomaly" --overwrite
     
     # Upload models
-    echo "Uploading pre-trained models..."
-    databricks fs cp --recursive --overwrite models/ dbfs:/mnt/blob_storage/models/
+    # echo "Uploading pre-trained models..."
+    # databricks fs cp --recursive --overwrite models/ dbfs:/mnt/blob_storage/models/
 
     # Setup workspace
     echo "Setting up Databricks workspace. This may take a while as cluster spins up..."

@@ -38,11 +38,18 @@
                 "description": "Event Hubs location"
             }
         },
-        "eventhubName": {
-            "defaultValue": "[concat(parameters('deployNs'), 'eh', uniqueString(resourceGroup().id))]",
+        "eventhubDataName": {
+            "defaultValue": "[concat(parameters('deployNs'), 'ehData', uniqueString(resourceGroup().id))]",
             "type": "string",
             "metadata": {
                 "description": "Event Hub name"
+            }
+        },
+        "eventhubAnomName": {
+            "defaultValue": "[concat(parameters('deployNs'), 'ehAnom', uniqueString(resourceGroup().id))]",
+            "type": "string",
+            "metadata": {
+                "description": "Event Hub name - anomalies"
             }
         },
         "storAccountName": {
@@ -63,7 +70,8 @@
     "variables": {
         "managedResourceGroupId": "[concat(subscription().id, '/resourceGroups/', variables('managedResourceGroupName'))]",
         "managedResourceGroupName": "[concat('databricks-rg-', parameters('dbricksWorkspaceName'), '-', uniqueString(parameters('dbricksWorkspaceName'), resourceGroup().id))]",
-        "eventhubsFullName": "[concat(parameters('eventhubsNsName'), '/', parameters('eventhubName'))]"
+        "eventhubsDataFullName": "[concat(parameters('eventhubsNsName'), '/', parameters('eventhubDataName'))]",
+        "eventhubsAnomFullName": "[concat(parameters('eventhubsNsName'), '/', parameters('eventhubAnomName'))]"
     },
     "resources": [
         {
@@ -101,7 +109,7 @@
         },
         {
             "type": "Microsoft.EventHub/namespaces/eventhubs",
-            "name": "[variables('eventhubsFullName')]",
+            "name": "[variables('eventhubsDataFullName')]",
             "apiVersion": "2017-04-01",
             "location": "[parameters('eventhubsLocation')]",
             "scale": null,
@@ -116,7 +124,7 @@
         },
         {
             "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
-            "name": "[concat(variables('eventhubsFullName'), '/send')]",
+            "name": "[concat(variables('eventhubsDataFullName'), '/send')]",
             "apiVersion": "2017-04-01",
             "location": "[parameters('eventhubsLocation')]",
             "scale": null,
@@ -127,12 +135,12 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', parameters('eventhubsNsName'))]",
-                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubName'))]"
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubDataName'))]"
             ]
         },
         {
             "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
-            "name": "[concat(variables('eventhubsFullName'), '/listen')]",
+            "name": "[concat(variables('eventhubsDataFullName'), '/listen')]",
             "apiVersion": "2017-04-01",
             "location": "[parameters('eventhubsLocation')]",
             "scale": null,
@@ -143,7 +151,54 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', parameters('eventhubsNsName'))]",
-                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubName'))]"
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubDataName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/eventhubs",
+            "name": "[variables('eventhubsAnomFullName')]",
+            "apiVersion": "2017-04-01",
+            "location": "[parameters('eventhubsLocation')]",
+            "scale": null,
+            "properties": {
+                "messageRetentionInDays": 1,
+                "partitionCount": 2,
+                "status": "Active"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventhubsNsName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
+            "name": "[concat(variables('eventhubsAnomFullName'), '/send')]",
+            "apiVersion": "2017-04-01",
+            "location": "[parameters('eventhubsLocation')]",
+            "scale": null,
+            "properties": {
+                "rights": [
+                    "Send"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventhubsNsName'))]",
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubAnomName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/eventhubs/authorizationRules",
+            "name": "[concat(variables('eventhubsAnomFullName'), '/listen')]",
+            "apiVersion": "2017-04-01",
+            "location": "[parameters('eventhubsLocation')]",
+            "scale": null,
+            "properties": {
+                "rights": [
+                    "Listen"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventhubsNsName'))]",
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('eventhubsNsName'), parameters('eventhubAnomName'))]"
             ]
         },
         {
@@ -199,8 +254,12 @@
             "value": "[parameters('eventhubsNsName')]",
             "type": "string"
         },
-        "eventhubName": {
-            "value": "[parameters('eventhubName')]",
+        "eventhubDataName": {
+            "value": "[parameters('eventhubDataName')]",
+            "type": "string"
+        },
+        "eventhubAnomName": {
+            "value": "[parameters('eventhubAnomName')]",
             "type": "string"
         }
     }

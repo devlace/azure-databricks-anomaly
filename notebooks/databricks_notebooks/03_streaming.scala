@@ -1,36 +1,69 @@
 // Databricks notebook source
+import org.apache.spark.eventhubs.{ ConnectionStringBuilder, EventHubsConf, EventPosition }
+import org.apache.spark.sql.functions.{ explode, split }
+import org.apache.spark.sql.streaming.Trigger.ProcessingTime
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.feature._
+import org.apache.spark.ml.linalg.{Vector, Vectors}
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Setup
+// MAGIC Retrieve secrets, setup EventHub connection, load save Anomaly Model
+
+// COMMAND ----------
+
 // Retrieve storage credentials
-val eh_namespace = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_namespace")
-val eh_name = dbutils.secrets.get(scope = "storage_scope", key = "eventhub")
-val eh_listen_key = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_listen_key")
+val ehNamespace = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_namespace")
+val ehData = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_data_name")
+val ehDataListenKey = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_data_listen_key")
+val ehAnom = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_anom_name")
+val ehAnomSendKey = dbutils.secrets.get(scope = "storage_scope", key = "eventhub_anom_send_key")
 
 // Set storage mount path
 val storage_mount_path = "/mnt/blob_storage"
 
-import org.apache.spark.eventhubs.{ ConnectionStringBuilder, EventHubsConf, EventPosition }
-import org.apache.spark.sql.functions.{ explode, split }
-import org.apache.spark.sql.streaming.Trigger.ProcessingTime
+// Set data path
+val data_path = "/mnt/blob_storage/data/for_streaming"
 
-val connectionString = ConnectionStringBuilder()
-  .setNamespaceName(eh_namespace)
-  .setEventHubName(eh_name)
+// Load model
+val model = PipelineModel.load(s"$storage_mount_path/models/MainPCAAnomalyModel")
+
+// Setup EH connection
+val dataEhConnectionString = ConnectionStringBuilder()
+  .setNamespaceName(ehNamespace)
+  .setEventHubName(ehData)
   .setSasKeyName("listen")
-  .setSasKey(eh_listen_key)
+  .setSasKey(ehDataListenKey)
   .build
-
-val eventHubsConf = EventHubsConf(connectionString)
+val dataEhConf = EventHubsConf(dataEhConnectionString)
   .setStartingPosition(EventPosition.fromEndOfStream)
+
+val anomEhConnectionString = ConnectionStringBuilder()
+  .setNamespaceName(ehNamespace)
+  .setEventHubName(ehAnom)
+  .setSasKeyName("send")
+  .setSasKey(ehAnomSendKey)
+  .build
+val anomEhConf = EventHubsConf(anomEhConnectionString)
+  .setStartingPosition(EventPosition.fromEndOfStream)
+
 
 // COMMAND ----------
 
-import org.apache.spark.eventhubs._
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.functions._
+// MAGIC %md
+// MAGIC ## Read message from EventHubs
 
+// COMMAND ----------
+
+// Read stream
 val incomingStream = spark
   .readStream
   .format("eventhubs")
-  .options(eventHubsConf.toMap)
+  .options(dataEhConf.toMap)
   .load()
 
 // Event Hub message format is JSON and contains "body" field
@@ -45,6 +78,11 @@ val messages =
   .select("Offset", "Time (readable)", "Timestamp", "Body")
 
 messages.printSchema
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Transform and enrich message through joining with static data
 
 // COMMAND ----------
 
@@ -67,22 +105,60 @@ var messageTransformed =
 val kdd_unlabeled = spark.read.table("kdd_unlabeled")
 val messageAll = messageTransformed
   .join(kdd_unlabeled, messageTransformed("id") === kdd_unlabeled("id"), "left_outer")
+  .drop(kdd_unlabeled("id"))
+  .drop(kdd_unlabeled("duration"))
+  .drop(kdd_unlabeled("protocol_type"))
+  .drop(kdd_unlabeled("service"))
+  .drop(kdd_unlabeled("src_bytes"))
+  .drop(kdd_unlabeled("dst_bytes"))
+  .drop(kdd_unlabeled("flag"))
+  .drop(kdd_unlabeled("land"))
+  .drop(kdd_unlabeled("wrong_fragment"))
+  .drop(kdd_unlabeled("urgent"))
+
+messageAll.printSchema
 
 // COMMAND ----------
 
-import org.apache.spark.ml.iforest.IForest
-import org.apache.spark.ml.tuning.CrossValidatorModel
+// MAGIC %md
+// MAGIC ## Use model to identify Anomalies in data stream
 
-val model = CrossValidatorModel.load("/mnt/blob_storage/models/iForest")
-val predictions = model.transform(kdd_unlabeled)
+// COMMAND ----------
+
+val columns = messageAll.columns ++ Array("norm_anomaly_score")
+
+val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
+val anomalies = model
+  .transform(messageAll)
+  .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
+  .filter("norm_anomaly_score > 0.0001")
+  .select(columns.map(col): _*)
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Output anomalies
 
 // COMMAND ----------
 
 // Output to console
-var query = predictions
+var query = anomalies
+  .select("id", "norm_anomaly_score") //filter for easy viewing
   .writeStream
   .outputMode("append")
   .format("console")
   .option("truncate", false)
   .start()
 query.awaitTermination()
+
+// COMMAND ----------
+
+val query =
+  anomalies
+    .writeStream
+    .format("eventhubs")
+    .outputMode("update")
+    .options(anomEhConf.toMap)
+    .trigger(ProcessingTime("25 seconds"))
+    .option("checkpointLocation", s"$data_path/checkpoints/anomalies/")
+    .start()

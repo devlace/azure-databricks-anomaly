@@ -11,6 +11,10 @@ display(df)
 
 # COMMAND ----------
 
+# Fraud vs non fraud
+
+# COMMAND ----------
+
 # Check for nulls
 dir(df)
 

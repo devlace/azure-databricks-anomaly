@@ -139,22 +139,38 @@ storage_account_key=$(az storage account keys list \
 
 # Retrieve eventhub details
 ehns_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubsNsName.value')
-eh_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubName.value')
-eh_send_key=$(az eventhubs eventhub authorization-rule keys list \
+## EH - data
+eh_data_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubDataName.value')
+eh_data_send_key=$(az eventhubs eventhub authorization-rule keys list \
     --namespace-name $ehns_name \
-    --eventhub-name $eh_name \
+    --eventhub-name $eh_data_name \
     --name send \
     --resource-group $rg_name \
     --output json |
     jq -r '.primaryKey')
-eh_listen_key=$(az eventhubs eventhub authorization-rule keys list \
+eh_data_listen_key=$(az eventhubs eventhub authorization-rule keys list \
     --namespace-name $ehns_name \
-    --eventhub-name $eh_name \
+    --eventhub-name $eh_data_name \
     --name listen \
     --resource-group $rg_name \
     --output json |
     jq -r '.primaryKey')
-
+## EH - anom
+eh_anom_name=$(echo $arm_output | jq -r '.properties.outputs.eventhubAnomName.value')
+eh_anom_send_key=$(az eventhubs eventhub authorization-rule keys list \
+    --namespace-name $ehns_name \
+    --eventhub-name $eh_anom_name \
+    --name send \
+    --resource-group $rg_name \
+    --output json |
+    jq -r '.primaryKey')
+eh_anom_listen_key=$(az eventhubs eventhub authorization-rule keys list \
+    --namespace-name $ehns_name \
+    --eventhub-name $eh_anom_name \
+    --name listen \
+    --resource-group $rg_name \
+    --output json |
+    jq -r '.primaryKey')
 
 # Create storage container
 # LACE TODO Idempotent?
@@ -172,9 +188,12 @@ cat << EOF >> $env_file
 BLOB_STORAGE_ACCOUNT=${storage_account}
 BLOB_STORAGE_KEY=${storage_account_key}
 EVENTHUB_NAMESPACE=${ehns_name}
-EVENTHUB=${eh_name}
-EVENTHUB_SEND_KEY=${eh_send_key}
-EVENTHUB_LISTEN_KEY=${eh_listen_key}
+EVENTHUB_DATA_NAME=${eh_data_name}
+EVENTHUB_DATA_SEND_KEY=${eh_data_send_key}
+EVENTHUB_DATA_LISTEN_KEY=${eh_data_listen_key}
+EVENTHUB_ANOM_NAME=${eh_anom_name}
+EVENTHUB_ANOM_SEND_KEY=${eh_anom_send_key}
+EVENTHUB_ANOM_LISTEN_KEY=${eh_anom_listen_key}
 DBRICKS_DOMAIN=${dbricks_location}.azuredatabricks.net
 DBRICKS_TOKEN=${dbi_token}
 
