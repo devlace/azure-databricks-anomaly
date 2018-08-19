@@ -16,18 +16,18 @@ http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
 
 # Deployment
 
-- To deploy the solution:
-    - Using pre-built docker container: `docker run -it devlace/azdatabricksanomaly`
-    - Build and run the container locally: `make deploy_w_docker`
-    - Deploy using local environment (see requirements below): `make deploy`
-- Follow the prompts for login, name of resource group, deployment location, etc.
+- Ensure you are in the root of the repository
+- To deploy the solution, use one of the following commands:
+    1. (*Easiest*) Using pre-built docker container: `docker run -it devlace/azdatabricksanomaly`
+    2. Build and run the container locally: `make deploy_w_docker`
+    3. Deploy using local environment (see requirements below): `make deploy`
+- Follow the prompts to login to Azure, name of resource group, deployment location, etc.
 - When prompted for a Databricks Host, enter the full name of your databricks workspace host, e.g. `https://southeastasia.azuredatabricks.net` 
 - When prompted for a token, you can [generate a new token](https://docs.databricks.com/api/latest/authentication.html) in the databricks workspace.
   
 To view additional make commands run `make`
 
 ## For local deployment
-Ensure you are in the root of the repository and logged in to the Azure cli by running `az login`.
 
 ### Requirements
 
@@ -36,6 +36,15 @@ Ensure you are in the root of the repository and logged in to the Azure cli by r
 - [jq tool](https://stedolan.github.io/jq/download/)
 - Check the requirements.txt for list of necessary Python packages. (will be installed by `make requirements`)
 
+### Development environment
+
+- The following works with [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+- Clone this repository
+- `cd azure-databricks-recommendation`
+- Create a python environment (Virtualenv or Conda). The following uses virtualenv.
+    - `virtualenv .`  This creates a python virtual environment to work in.
+    - `source bin/activate`  This activates the virtual environment.
+- `make requirements`. This installs python dependencies in the virtual environment.
 
 # Project Organization
 ------------
@@ -43,13 +52,15 @@ Ensure you are in the root of the repository and logged in to the Azure cli by r
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── external       <- Data from third party sources.
-    │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
-    │
-    ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
+    ├── deploy             <- Deployment artifacts
+    │   │
+    │   └── databricks     <- Deployment artifacts in relation to the Databricks workspace
+    │   │
+    │   └── deploy.sh      <- Deployment script to deploy all Azure Resources
+    │   │
+    │   └── azuredeploy.json <- Azure ARM template w/ .parameters file
+    │   │
+    │   └── Dockerfile     <- Dockerfile for deployment
     │
     ├── models             <- Trained and serialized models, model predictions, or model summaries
     │
@@ -57,33 +68,29 @@ Ensure you are in the root of the repository and logged in to the Azure cli by r
     │                         the creator's initials, and a short `-` delimited description, e.g.
     │                         `1.0-jqp-initial-data-exploration`.
     │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │   └── figures        <- Generated graphics and figures to be used in reporting
+    ├── references         <- Contains the powerpoint presentation, and other reference materials.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
     │
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
     ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
-    │   │
-    │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
-    │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
-    │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
-    │   │
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
-    │
-    └── tox.ini            <- tox file with settings for running tox; see tox.testrun.org
+        ├── __init__.py    <- Makes src a Python module
+        │
+        ├── data           <- Scripts to download or generate data
+        │   └── make_dataset.py
+        │
+        ├── features       <- Scripts to turn raw data into features for modeling
+        │   └── build_features.py
+        │
+        ├── models         <- Scripts to train models and then use trained models to make
+        │   │                 predictions
+        │   ├── predict_model.py
+        │   └── train_model.py
+        │
+        └── visualization  <- Scripts to create exploratory and results oriented visualizations
+            └── visualize.py
+
 
 
 --------
