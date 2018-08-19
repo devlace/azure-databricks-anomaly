@@ -48,7 +48,7 @@ wait_for_run () {
         result_state=$(databricks runs get --run-id $mount_run_id | jq -r ".state.result_state")
         if [[ $result_state == "SUCCESS" || $result_state == "SKIPPED" ]]; then
             break;
-        elif [[ $life_cycle_status == "INTERNAL_ERROR" || $life_cycle_status == "FAILED" ]]; then
+        elif [[ $life_cycle_status == "INTERNAL_ERROR" || $result_state == "FAILED" ]]; then
             state_message=$(databricks runs get --run-id $mount_run_id | jq -r ".state.state_message")
             echo -e "${RED}Error while running ${mount_run_id}: ${state_message} ${NC}"
             exit 1

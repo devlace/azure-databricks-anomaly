@@ -1,7 +1,5 @@
-azure-databricks-anomaly
+Anomaly Detection Pipeline on Azure Databricks
 ==============================
-
-# Introduction
 
 An anomaly detection data pipeline on Azure Databricks
 
