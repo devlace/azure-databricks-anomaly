@@ -4,10 +4,12 @@ Anomaly Detection Pipeline on Azure Databricks
 An anomaly detection data pipeline on Azure Databricks
 
 # Architecture
+LACE: TODO description
 ![Architecture](images/archi.PNG?raw=true "Architecture")
 
 # Anomaly Detection Model
-LACE: TODO
+LACE: TODO description
+![Spark ML Pipeline](images/MLPipeline.PNG?raw=true "Spark ML Pipeline")
 
 # Data
 http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
