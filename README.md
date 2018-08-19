@@ -15,13 +15,18 @@ LACE: TODO
 http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
 
 # Deployment
-You can use the following docker container to deploy the solution:
-- `docker run -it devlace/azdatabricksanomaly`
 
-Or, alternatively, build and run the container locally with:
-- `make deploy_w_docker`
+- To deploy the solution:
+    - Using pre-built docker container: `docker run -it devlace/azdatabricksanomaly`
+    - Build and run the container locally: `make deploy_w_docker`
+    - Deploy using local environment (see requirements below): `make deploy`
+- Follow the prompts for login, name of resource group, deployment location, etc.
+- When prompted for a Databricks Host, enter the full name of your databricks workspace host, e.g. `https://southeastasia.azuredatabricks.net` 
+- When prompted for a token, you can [generate a new token](https://docs.databricks.com/api/latest/authentication.html) in the databricks workspace.
+  
+To view additional make commands run `make`
 
-## For local deployment w/o Docker
+## For local deployment
 Ensure you are in the root of the repository and logged in to the Azure cli by running `az login`.
 
 ### Requirements
@@ -30,7 +35,6 @@ Ensure you are in the root of the repository and logged in to the Azure cli by r
 - [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/) or [Anaconda](https://anaconda.org/anaconda/python)
 - [jq tool](https://stedolan.github.io/jq/download/)
 - Check the requirements.txt for list of necessary Python packages. (will be installed by `make requirements`)
-
 
 
 # Project Organization

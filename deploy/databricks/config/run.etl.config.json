@@ -1,5 +1,5 @@
 {
-    "run_name": "Mount storage",
+    "run_name": "Perform ETL (SparkSQL tables)",
     "new_cluster": {
         "spark_version": "4.3.x-scala2.11",
         "node_type_id": "Standard_DS12_v2",
