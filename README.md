@@ -11,6 +11,9 @@ An anomaly detection data pipeline on Azure Databricks
 # Anomaly Detection Model
 LACE: TODO
 
+# Data
+http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
+
 # Deployment
 You can use the following docker container to deploy the solution:
 - `docker run -it devlace/azdatabricksanomaly`
@@ -28,8 +31,7 @@ Ensure you are in the root of the repository and logged in to the Azure cli by r
 - [jq tool](https://stedolan.github.io/jq/download/)
 - Check the requirements.txt for list of necessary Python packages. (will be installed by `make requirements`)
 
-# Data
-iForest - https://github.com/titicaca/spark-iforest
+
 
 # Project Organization
 ------------
