@@ -8,7 +8,7 @@ An anomaly detection data pipeline on Azure Databricks
 # Architecture
 ![Architecture](images/archi.PNG?raw=true "Architecture")
 
-# Spark Pipeline Model
+# Anomaly Detection Model
 LACE: TODO
 
 # Deployment
