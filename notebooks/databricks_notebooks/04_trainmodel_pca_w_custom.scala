@@ -20,13 +20,16 @@ import org.apache.spark.sql.types.{StructField, StructType, DoubleType}
 import breeze.linalg.{DenseVector, sum}
 import breeze.numerics.pow
 
-
 /**
  * Params for [[PCAAnomaly]] and [[PCAAnomalyModel]].
  */
 trait PCAAnomalyParams extends Params with HasInputCol with HasOutputCol {
   final val outputPCACol = new Param[String](this, "outputPCACol", "The output column with PCA features")
+  final val outputAbsScoreCol = new Param[String](this, "outputAbsScoreCol", "The output column with non-normalized Anomaly Scores")
+  final val labelCol = new Param[String](this, "labelCol", "Label column")
   setDefault(outputPCACol, "pca_features")
+  setDefault(outputAbsScoreCol, "nonnorm_anomaly_score")
+  setDefault(labelCol, "label")
   
   final val k: IntParam = new IntParam(this, "k", "the number of principal components (> 0)",
     ParamValidators.gt(0))
@@ -53,7 +56,9 @@ class PCAAnomaly (override val uid: String)
 
   def setInputCol(value: String): this.type = set(inputCol, value)
   def setOutputCol(value: String): this.type = set(outputCol, value)
+  def setLabelCol(value: String): this.type = set(labelCol, value)
   def setOutputPCACol(value: String): this.type = set(outputPCACol, value)
+  def setOutputAbsScoreCol(value: String): this.type = set(outputAbsScoreCol, value)
   def setK(value: Int): this.type = set(k, value)
 
   /**
@@ -62,12 +67,15 @@ class PCAAnomaly (override val uid: String)
   override def fit(dataset: Dataset[_]): PCAAnomalyModel = {
     transformSchema(dataset.schema, logging = true)
     
+    // remove anomalies
+    val cleanDataset = dataset.filter(col($(labelCol)) === 0)
+    
     // Fit regular PCA model
     val pcaModel = new PCA()
       .setInputCol($(inputCol))
       .setOutputCol($(outputPCACol))
       .setK($(k))
-      .fit(dataset)
+      .fit(cleanDataset)
     
     copyValues(new PCAAnomalyModel(uid, pcaModel).setParent(this))
   }
@@ -95,12 +103,13 @@ class PCAAnomalyModel (
 
   import PCAAnomalyModel._
 
-  /** @group setParam */
   def setInputCol(value: String): this.type = set(inputCol, value)
-
-  /** @group setParam */
   def setOutputCol(value: String): this.type = set(outputCol, value)
-
+  def setLabelCol(value: String): this.type = set(labelCol, value)
+  def setOutputPCACol(value: String): this.type = set(outputPCACol, value)
+  def setOutputAbsScoreCol(value: String): this.type = set(outputAbsScoreCol, value)
+  def setK(value: Int): this.type = set(k, value)
+    
   /**
    * Transform a vector by computed Principal Components.
    *
@@ -123,8 +132,15 @@ class PCAAnomalyModel (
       val error = sum(pow(diff, 2))
       error
     })
-    val result = pcaResults.withColumn($(outputCol), anomalyScoreUdf(col($(inputCol)), col($(outputPCACol))))
-    result
+    val anomalyScore = pcaResults.withColumn($(outputAbsScoreCol), anomalyScoreUdf(col($(inputCol)), col($(outputPCACol))))
+    
+    // Normalize
+    val Row(maxVal: Double) = anomalyScore.select(max($(outputAbsScoreCol))).head
+    val Row(minVal: Double) = anomalyScore.select(min($(outputAbsScoreCol))).head
+    val nomarlizeAnomalyScore = anomalyScore
+      .withColumn($(outputCol), (col($(outputAbsScoreCol)) - minVal) / (maxVal - minVal))
+    
+    nomarlizeAnomalyScore
   }
 
   override def transformSchema(schema: StructType): StructType = {
@@ -186,20 +202,20 @@ import breeze.linalg.{DenseVector, sum}
 import breeze.numerics.pow
 
 // Read data
+spark.catalog.refreshTable("kdd") // need to refresh to invalidate cache
 val df = spark.read.table("kdd")
 
 // Transform data
-val transformed_df = df.withColumnRenamed("label", "original_label")
-  .withColumn("label_name", when(col("original_label") === "normal.", "normal").otherwise("anomaly"))
-
-// Drop nulls
-// Lace TODO
+val transformed_df = df
+  .withColumnRenamed("label", "original_label")
+  .withColumn("rainbow", when(col("original_label") === "normal.", 0).otherwise(1))
+  .na.drop()
 
 // Clean up labels for anomaly
 display(transformed_df)
 
-val columns = df.columns.toSet
-val features = columns -- Set("id", "label", "original_label")
+val columns = transformed_df.columns.toSet
+val features = columns -- Set("id", "rainbow", "original_label")
 val categoricalFeatures = Set("protocol_type", "service", "flag")
 val continuousFeatures = features -- categoricalFeatures
 |
@@ -219,11 +235,6 @@ val encoder = new OneHotEncoderEstimator()
   .setInputCols(categoricalFeatures.map(colName => colName + "_index").toArray)
   .setOutputCols(categoricalFeatures.map(colName => colName + "_encoded").toArray)
 
-// Label Indexer
-val labelIndexer = new StringIndexer()
-  .setInputCol("label_name")
-  .setOutputCol("label")
-
 // Vector Assembler
 var selectedFeatures = continuousFeatures ++ categoricalFeatures.map(colName => colName + "_encoded") 
 val assembler = new VectorAssembler()
@@ -242,25 +253,15 @@ val pcaAnom = new PCAAnomaly()
   .setInputCol("norm_features")
   .setOutputPCACol("pca_features")  
   .setOutputCol("anomaly_score")
+  .setLabelCol("rainbow")
   .setK(3)
-
-// Vectorize Anomaly Score
-val anomalyAssembler = new VectorAssembler()
-  .setInputCols(Array("anomaly_score"))
-  .setOutputCol("anomaly_score_vec")
-
-// Normalize anomaly score
-val anomalyScoreScalar = new MinMaxScaler()
-  .setInputCol("anomaly_score_vec")
-  .setOutputCol("norm_anomaly_score_vec")
 
 // COMMAND ----------
 
 // Pipeline
 val mainPipeline = new Pipeline()
   .setStages(indexers ++ 
-     Array(encoder, labelIndexer, assembler, standardScalar, 
-       pcaAnom, anomalyAssembler, anomalyScoreScalar)) 
+     Array(encoder, assembler, standardScalar, pcaAnom)) //pcaAnom
 
 // Fit pipeline
 val mainPipelineModel = mainPipeline.fit(training)
@@ -287,14 +288,15 @@ import org.apache.spark.ml.{Pipeline, PipelineModel}
 
 val model = PipelineModel.load("/mnt/blob_storage/models/PCAAnomalyModel")
 
-val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
-
 val transformedTraining = model.transform(training)
-  .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
-  .select("label", "norm_anomaly_score")
-  .cache()
+ // .select("original_label", "rainbow", "anomaly_score")
 
-display(transformedTraining)
+display(transformedTraining.groupBy("original_label").agg(avg("anomaly_score")))
+//display(transformedTraining)
+
+// COMMAND ----------
+
+display(transformedTraining.groupBy("rainbow").agg(avg("anomaly_score")))
 
 // COMMAND ----------
 
@@ -304,15 +306,16 @@ display(transformedTraining)
 // COMMAND ----------
 
 val transformedTest = mainPipelineModel.transform(test)
-  .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
-  .select("label", "norm_anomaly_score")
+  .select("rainbow", "anomaly_score")
   .cache()
+
+display(transformedTest)
 
 // COMMAND ----------
 
-display(transformedTest
-        .filter(col("label") === 0)
-        .withColumn("log_anom_score", ))
+// display(transformedTest
+//         .filter(col("label") === 0)
+//         .withColumn("log_anom_score", ))
 
 // COMMAND ----------
 
@@ -325,12 +328,7 @@ import  org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 
 val evaluator = new BinaryClassificationEvaluator()
   .setMetricName("areaUnderROC")
-  .setLabelCol("label")
-  .setRawPredictionCol("norm_anomaly_score")
+  .setLabelCol("rainbow")
+  .setRawPredictionCol("anomaly_score")
 
 evaluator.evaluate(transformedTraining)
-
-
-// COMMAND ----------
-
-evaluator.evaluate(transformedTest)

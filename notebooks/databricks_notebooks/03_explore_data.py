@@ -3,15 +3,21 @@ df = spark.read.table("kdd")
 
 # COMMAND ----------
 
-df.head()
-
-# COMMAND ----------
-
 display(df)
 
 # COMMAND ----------
 
+from pyspark.sql import functions as F
+
 # Fraud vs non fraud
+
+# Transform data
+transformed_df = df\
+  .withColumn("rainbow", F.when(df.label == "normal.", 0).otherwise(1))\
+  .select()
+
+display(transformed_df)
+
 
 # COMMAND ----------
 
@@ -126,28 +132,3 @@ selected_features = [
  'dst_host_rerror_rate',
  'dst_host_srv_rerror_rate',
 ]
-
-# COMMAND ----------
-
-from pyspark.ml.feature import VectorAssembler
-
-assembler = VectorAssembler(inputCols=selected_features, outputCol='features')
-transformedDF = assembler.transform(transformedDF)
-display(transformedDF)
-
-# COMMAND ----------
-
-from pyspark.ml.classification import RandomForestClassifier
-
-rf = RandomForestClassifier(labelCol='label_index', 
-                            featuresCol='features',
-                            maxDepth=5)
-
-# COMMAND ----------
-
-# Final Pipeline
-pipeline = Pipeline(stages=indexers + encoders + labelIndexer + [assembler, rf])
-
-# COMMAND ----------
-
-model = pipeline.fit(train_df)
