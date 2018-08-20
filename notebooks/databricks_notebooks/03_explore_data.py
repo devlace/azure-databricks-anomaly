@@ -1,4 +1,8 @@
 # Databricks notebook source
+from pyspark.sql import functions as F
+
+# COMMAND ----------
+
 df = spark.read.table("kdd")
 
 # COMMAND ----------
@@ -7,36 +11,7 @@ display(df)
 
 # COMMAND ----------
 
-from pyspark.sql import functions as F
-
-# Fraud vs non fraud
-
-# Transform data
-transformed_df = df\
-  .withColumn("rainbow", F.when(df.label == "normal.", 0).otherwise(1))\
-  .select()
-
-display(transformed_df)
-
-
-# COMMAND ----------
-
-# Check for nulls
-dir(df)
-
-# COMMAND ----------
-
-dir(df.stat)
-
-# COMMAND ----------
-
-summary_df = df.summary()
-display(summary_df)
-
-# COMMAND ----------
-
-describe_df = df.describe()
-display(describe_df)
+df.printSchema()
 
 # COMMAND ----------
 
@@ -44,91 +19,33 @@ df.count()
 
 # COMMAND ----------
 
+# Summary on continuous features
+cols = df.columns
+noncont_features = ['id', 'protocol_type', 'service', 'flag', 'label']
+cont_features = [x for x in cols if x not in noncont_features]
 
-
-# COMMAND ----------
-
-df.stat.crosstab("name", "item")
-
-# COMMAND ----------
-
-df.columns
+summary_df = df.select(cont_features).summary().cache()
+display(summary_df)
 
 # COMMAND ----------
 
-categoricalFeatures = ['protocol_type', 'service', 'flag']
+# Normal vs Anomalies
+transformed_df = (df\
+  .withColumn("label", F.when(df.label == "normal.", 0).otherwise(1))\
+  .groupBy("label")
+  .agg(F.count("id")))
 
-display(df.select(categoricalFeatures).describe())
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-from pyspark.ml.feature import StringIndexer
-from pyspark.ml.feature import OneHotEncoderEstimator
-
-# Indexers
-categoricalFeatures = ['protocol_type', 'service', 'flag']
-indexers = [StringIndexer(inputCol=column, outputCol=column + '_index', handleInvalid='keep') for column in categoricalFeatures]
-
-# encoders
-encoders = [OneHotEncoderEstimator(inputCols=[column + '_index'], outputCols=[column + '_encoded']) for column in categoricalFeatures]
-
-# Label Indexer
-labelIndexer = [StringIndexer(inputCol='label', outputCol='label_index')]
+display(transformed_df)
 
 # COMMAND ----------
 
-from pyspark.ml import Pipeline
+# Count by label
+transformed_df = (df\
+  .groupBy("label")\
+  .agg(F.count("label").alias("num_requests"))\
+  .orderBy("num_requests", ascending=False))
 
-pipeline = Pipeline(stages=indexers + encoders + labelIndexer)
-transformedDF = pipeline.fit(df).transform(df)
-display(transformedDF)
+display(transformed_df)
 
 # COMMAND ----------
 
-selected_features = [
- 'duration',
- 'protocol_type_encoded',
- 'service_encoded',
- 'flag_encoded',
- 'src_bytes',
- 'dst_bytes',
- 'land',
- 'wrong_fragment',
- 'urgent',
- 'hot',
- 'num_failed_logins',
- 'logged_in',
- 'num_compromised',
- 'root_shell',
- 'su_attempted',
- 'num_root',
- 'num_file_creations',
- 'num_shells',
- 'num_access_files',
- 'num_outbound_cmds',
- 'is_host_login',
- 'is_guest_login',
- 'count',
- 'srv_count',
- 'serror_rate',
- 'srv_serror_rate',
- 'rerror_rate',
- 'srv_rerror_rate',
- 'same_srv_rate',
- 'diff_srv_rate',
- 'srv_diff_host_rate',
- 'dst_host_count',
- 'dst_host_srv_count',
- 'dst_host_same_srv_rate',
- 'dst_host_diff_srv_rate',
- 'dst_host_same_src_port_rate',
- 'dst_host_srv_diff_host_rate',
- 'dst_host_serror_rate',
- 'dst_host_srv_serror_rate',
- 'dst_host_rerror_rate',
- 'dst_host_srv_rerror_rate',
-]
