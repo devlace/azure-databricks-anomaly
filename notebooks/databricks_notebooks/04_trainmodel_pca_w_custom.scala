@@ -258,6 +258,11 @@ val pcaAnom = new PCAAnomaly()
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC ## Fit Pipeline (PCAAnomaly)
+
+// COMMAND ----------
+
 // Pipeline
 val mainPipeline = new Pipeline()
   .setStages(indexers ++ 
