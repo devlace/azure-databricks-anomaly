@@ -15,6 +15,7 @@ display(dbutils.fs.ls("/mnt/blob_storage/models"))
 // COMMAND ----------
 
 // Load data
+// In production, you may need to filter since last run
 val df = spark.read.table("kdd_unlabeled")
 
 // Load model
@@ -25,8 +26,4 @@ val model = PipelineModel.load(modelLoc)
 val predictions = model.transform(df)
 
 // Save data
-//predictions.write.mode("append").saveAsTable("kdd_")
-
-// COMMAND ----------
-
-predictions.printSchema()
+predictions.write.mode("append").saveAsTable("kdd_predictions")

@@ -1,10 +1,24 @@
 // Databricks notebook source
+// MAGIC %md
+// MAGIC ## Setup
+
+// COMMAND ----------
+
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.feature._
 import org.apache.spark.sql.functions._
 import org.apache.spark.ml.classification._
 import org.apache.spark.ml.evaluation.{MulticlassClassificationEvaluator, BinaryClassificationEvaluator}
 import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
+
+// Model Directory
+val modelDir = "/mnt/blob_storage/models"
+val randomSeed = 123
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ## Load and transform data
 
 // COMMAND ----------
 
@@ -85,7 +99,7 @@ val transformedDf = transformPipeline
   .transform(cleanDf)
 
 // Split data
-val Array(transformedTraining, transformedTest) = transformedDf.randomSplit(Array(0.8, 0.2), seed = 123)
+val Array(transformedTraining, transformedTest) = transformedDf.randomSplit(Array(0.8, 0.2), seed = randomSeed)
 
 display(transformedDf.select("label_index", "norm_features"))
 
@@ -206,7 +220,6 @@ println(s"Test Error = ${(1.0 - lrCvAccuracy)}")
 
 // COMMAND ----------
 
-val modelDir = "/mnt/blob_storage/models"
 gbtModel.write.overwrite().save(s"$modelDir/GBT")
 rfPipelineModel.write.overwrite().save(s"$modelDir/RandomForestPipeline")
 lrCvPipelineModel.write.overwrite().save(s"$modelDir/LogRegPipeline")

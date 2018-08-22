@@ -40,7 +40,7 @@ To view additional make commands run `make`
 
 - The following works with [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
 - Clone this repository
-- `cd azure-databricks-recommendation`
+- `cd azure-databricks-anomaly`
 - Create a python environment (Virtualenv or Conda). The following uses virtualenv.
     - `virtualenv .`  This creates a python virtual environment to work in.
     - `source bin/activate`  This activates the virtual environment.

@@ -1,5 +1,20 @@
 // Databricks notebook source
+// MAGIC %md
+// MAGIC ## Writing your own Model (Custom Spark Estimators and Transformers)
 
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ### PCA for Anomaly detection
+// MAGIC 1. Filter out nomalous points and perform PCA to extract Principal Components
+// MAGIC 2. Reconstruct the features using the Principal Components and the feature vectors.
+// MAGIC 3. To calculate the Anomaly Score, calculate the normalized error between the reconstructed features and the original feature vector
+// MAGIC   - In this case, we use the sum of squared differences from the two vectors
+// MAGIC   
+// MAGIC For more information:
+// MAGIC - [PCA-based Anomaly Detection](https://docs.microsoft.com/en-us/azure/machine-learning/studio-module-reference/pca-based-anomaly-detection)
+// MAGIC - [A randomized algorithm for principal component analysis](https://arxiv.org/abs/0809.2274). Rokhlin, Szlan and Tygert
+// MAGIC - [Finding Structure with Randomness: Probabilistic Algorithms for Constructing Approximate Matrix Decompositions](http://users.cms.caltech.edu/~jtropp/papers/HMT11-Finding-Structure-SIREV.pdf). Halko, Martinsson and Tropp.
 
 // COMMAND ----------
 
@@ -12,7 +27,6 @@ import org.apache.spark.ml.linalg._
 import org.apache.spark.ml.param._
 import org.apache.spark.ml.param.shared._
 import org.apache.spark.ml.util._
-// import org.apache.spark.ml.feature.{PCA, PCAModel}
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType, DoubleType}
@@ -194,34 +208,57 @@ object PCAAnomalyModel extends MLReadable[PCAAnomalyModel] {
 
 // COMMAND ----------
 
+// MAGIC %md
+// MAGIC ## Use Custom Model in a Pipeline
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ### Setup
+
+// COMMAND ----------
+
 import org.apache.spark.ml.feature.{StringIndexer, OneHotEncoderEstimator, VectorAssembler, PCA, StandardScaler, MinMaxScaler, PCAAnomaly}
-import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.sql.functions._
 import breeze.linalg.{DenseVector, sum}
 import breeze.numerics.pow
 
+val modelDir = "mnt/blob_storage/models/PCAAnomalyModel"
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ### Load and transform data
+
+// COMMAND ----------
+
 // Read data
 spark.catalog.refreshTable("kdd") // need to refresh to invalidate cache
 val df = spark.read.table("kdd")
 
-// Transform data
-val transformed_df = df
-  .withColumnRenamed("label", "original_label")
-  .withColumn("rainbow", when(col("original_label") === "normal.", 0).otherwise(1))
+// Clean data
+val cleanDf = df
+  .withColumn("is_anomaly", when(col("label") === "normal.", 0).otherwise(1))
   .na.drop()
 
 // Clean up labels for anomaly
-display(transformed_df)
+display(cleanDf)
 
-val columns = transformed_df.columns.toSet
-val features = columns -- Set("id", "rainbow", "original_label")
+val columns = cleanDf.columns.toSet
+val features = columns -- Set("id", "label", "is_anomaly")
 val categoricalFeatures = Set("protocol_type", "service", "flag")
 val continuousFeatures = features -- categoricalFeatures
-|
-// Split data
-val Array(training, test) = transformed_df.randomSplit(Array(0.8, 0.2), seed = 123)
 
+// Split
+val Array(training, test) = cleanDf.randomSplit(Array(0.8, 0.2), seed = 123)
+
+
+// COMMAND ----------
+
+// MAGIC %md
+// MAGIC ### Define Feature Estimators and Transformers
 
 // COMMAND ----------
 
@@ -253,13 +290,14 @@ val pcaAnom = new PCAAnomaly()
   .setInputCol("norm_features")
   .setOutputPCACol("pca_features")  
   .setOutputCol("anomaly_score")
-  .setLabelCol("rainbow")
-  .setK(3)
+  .setLabelCol("is_anomaly")
+  .setK(2)
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ## Fit Pipeline (PCAAnomaly)
+// MAGIC ### Build and Fit Pipeline using PCAAnomaly (custom model)
+// MAGIC ![PCAAnomaly Pipeline](files/images/PCAAnomalyPipeline.PNG)
 
 // COMMAND ----------
 
@@ -275,12 +313,12 @@ val mainPipelineModel = mainPipeline.fit(training)
 mainPipelineModel
   .write
   .overwrite
-  .save("mnt/blob_storage/models/PCAAnomalyModel")
+  .save(modelDir)
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ## Use Model to predict anomalies
+// MAGIC ### Use Model to predict anomalies
 
 // COMMAND ----------
 
@@ -289,19 +327,24 @@ mainPipelineModel
 
 // COMMAND ----------
 
-import org.apache.spark.ml.{Pipeline, PipelineModel}
+// Load saved model
+val model = PipelineModel.load(modelDir)
 
-val model = PipelineModel.load("/mnt/blob_storage/models/PCAAnomalyModel")
-
+// Use model 
 val transformedTraining = model.transform(training)
- // .select("original_label", "rainbow", "anomaly_score")
+  .select("is_anomaly", "label", "anomaly_score")
+  .cache()
 
-display(transformedTraining.groupBy("original_label").agg(avg("anomaly_score")))
-//display(transformedTraining)
+display(transformedTraining
+        .groupBy("is_anomaly")
+        .agg(avg("anomaly_score")))
 
 // COMMAND ----------
 
-display(transformedTraining.groupBy("rainbow").agg(avg("anomaly_score")))
+display(transformedTraining
+  .groupBy("label")
+  .agg(avg("anomaly_score").alias("anomaly_score"))
+  .sort(desc("anomaly_score")))
 
 // COMMAND ----------
 
@@ -311,21 +354,24 @@ display(transformedTraining.groupBy("rainbow").agg(avg("anomaly_score")))
 // COMMAND ----------
 
 val transformedTest = mainPipelineModel.transform(test)
-  .select("rainbow", "anomaly_score")
+  .select("is_anomaly", "label", "anomaly_score")
   .cache()
 
-display(transformedTest)
+display(transformedTest
+        .groupBy("is_anomaly")
+        .agg(avg("anomaly_score")))
 
 // COMMAND ----------
 
-// display(transformedTest
-//         .filter(col("label") === 0)
-//         .withColumn("log_anom_score", ))
+display(transformedTest
+  .groupBy("label")
+  .agg(avg("anomaly_score").alias("anomaly_score"))
+  .sort(desc("anomaly_score")))
 
 // COMMAND ----------
 
 // MAGIC %md
-// MAGIC ## Evaluate Model using Test data
+// MAGIC ### Evaluate Model using Test data
 
 // COMMAND ----------
 
@@ -333,7 +379,7 @@ import  org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 
 val evaluator = new BinaryClassificationEvaluator()
   .setMetricName("areaUnderROC")
-  .setLabelCol("rainbow")
+  .setLabelCol("is_anomaly")
   .setRawPredictionCol("anomaly_score")
 
 evaluator.evaluate(transformedTraining)
