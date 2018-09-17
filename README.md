@@ -1,3 +1,5 @@
+[![Build Status](https://msdevlace.visualstudio.com/MLDevOps/_apis/build/status/devlace.azure-databricks-anomaly)](https://msdevlace.visualstudio.com/MLDevOps/_build/latest?definitionId=3)
+
 Anomaly Detection Pipeline on Azure Databricks
 ==============================
 
