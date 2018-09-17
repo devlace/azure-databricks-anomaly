@@ -92,7 +92,7 @@ _main() {
     echo "Uploading notebooks..."
     databricks workspace import_dir "../../notebooks/databricks_notebooks" "/anomaly" --overwrite
 
-    # Upload images to FileStore
+    # Upload notebook images to FileStore
     # https://docs.databricks.com/user-guide/advanced/filestore.html
     databricks fs cp "../../images/FileStore" "dbfs:/FileStore/images" --recursive
     

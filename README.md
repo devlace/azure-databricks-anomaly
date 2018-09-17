@@ -1,18 +1,22 @@
 Anomaly Detection Pipeline on Azure Databricks
 ==============================
 
-An anomaly detection data pipeline on Azure Databricks
+The following is an anomaly detection data pipeline on Azure Databricks. This solution was built to demonstrate how to build Advance Analytics Pipelines on Azure Databricks, with a particular focus on the Spark MLLib library. This solution includes:
+1. Initial ETL Data loading process into SparkSQL tables
+2. Model training and scoring
+   - Explanation of Pipelines, Transformer and Estimators
+   - Sample Custom Estimator (PCAAnomaly)
+3. Persisting trained models
+4. Productionizing models through
+    -  Batch inference
+    -  Streaming
 
 # Architecture
-LACE: TODO description
 ![Architecture](images/archi.PNG?raw=true "Architecture")
 
-# Anomaly Detection Model
-LACE: TODO description
-![Spark ML Pipeline](images/MLPipeline.PNG?raw=true "Spark ML Pipeline")
 
 # Data
-http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
+[KDD Cup 1999 Data](http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html)
 
 # Deployment
 
@@ -31,7 +35,7 @@ To view additional make commands run `make`
 
 ### Requirements
 
-- [Azure CLI 2.0](https://azure.github.io/projects/clis/)
+- [Azure CLI 2.0+](https://azure.github.io/projects/clis/)
 - [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/) or [Anaconda](https://anaconda.org/anaconda/python)
 - [jq tool](https://stedolan.github.io/jq/download/)
 - Check the requirements.txt for list of necessary Python packages. (will be installed by `make requirements`)
@@ -74,8 +78,6 @@ To view additional make commands run `make`
     │                         generated with `pip freeze > requirements.txt`
     │
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- 
-
 
 
 --------
