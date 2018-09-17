@@ -7,8 +7,13 @@ pool:
   vmImage: 'Ubuntu 16.04'
 
 variables:
-  imageName: 'devlace/azdatabricksanomaly:$(build.buildId)'
+  dockerId: 'devlace'
+  imageName: 'azdatabricksanomaly'
 
 steps:
-- script: docker build -f deploy/Dockerfile -t $(imageName) .
+- script: docker build -f deploy/Dockerfile -t $(dockerId)/$(imageName) .
   displayName: 'docker build'
+- script: |
+    docker login -u $(dockerId) -p $(dockerPswd)
+    docker push $(dockerId)/$(imageName)
+  displayName: 'docker push'
