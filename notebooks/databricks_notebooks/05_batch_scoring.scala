@@ -18,12 +18,15 @@ display(dbutils.fs.ls("/mnt/blob_storage/models"))
 // In production, you may need to filter since last run
 val df = spark.read.table("kdd_unlabeled")
 
+// Clean data
+val cleanDf = df.na.drop() // For production, may need to save this to another table, or impute null values
+
 // Load model
 val modelLoc = "/mnt/blob_storage/models/RandomForestPipeline"
 val model = PipelineModel.load(modelLoc)
 
 // Make predictions
-val predictions = model.transform(df)
+val predictions = model.transform(cleanDf)
 
 // Save data
 predictions.write.mode("append").saveAsTable("kdd_predictions")

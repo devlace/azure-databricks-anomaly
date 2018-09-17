@@ -1,1 +1,0 @@
-{"class":"org.apache.spark.ml.feature.OneHotEncoderEstimator","timestamp":1534085836677,"sparkVersion":"2.3.1","uid":"oneHotEncoder_acc8eed83a0d","paramMap":{"outputCols":["protocol_type_encoded","service_encoded","flag_encoded"],"dropLast":true,"handleInvalid":"error","inputCols":["protocol_type_index","service_index","flag_index"]}}

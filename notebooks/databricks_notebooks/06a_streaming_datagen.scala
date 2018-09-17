@@ -44,12 +44,23 @@ val kdd_unlabeled_df_json = kdd_unlabeled_df.select(to_json(
 
 // COMMAND ----------
 
+// // Output to console
+// var query = kdd_unlabeled_df_json
+//   .writeStream
+//   .outputMode("append")
+//   .format("console")
+//   .option("truncate", false)
+//   .start()
+// query.awaitTermination()
+
+// COMMAND ----------
+
 val query =
   kdd_unlabeled_df_json
     .writeStream
     .format("eventhubs")
     .outputMode("update")
     .options(eventHubsConf.toMap)
-    .trigger(ProcessingTime("25 seconds"))
+    .trigger(ProcessingTime("10 seconds"))
     .option("checkpointLocation", s"$data_path/checkpoints/kdd_unlabeled_gen/")
     .start()

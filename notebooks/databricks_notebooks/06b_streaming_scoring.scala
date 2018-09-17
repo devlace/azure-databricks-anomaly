@@ -30,7 +30,7 @@ val storage_mount_path = "/mnt/blob_storage"
 val data_path = "/mnt/blob_storage/data/for_streaming"
 
 // Load model
-val model = PipelineModel.load(s"$storage_mount_path/models/PCAAnomalyModel")
+val model = PipelineModel.load(s"$storage_mount_path/models/RandomForestPipeline")
 
 // Setup EH connection
 val dataEhConnectionString = ConnectionStringBuilder()
@@ -125,14 +125,18 @@ messageAll.printSchema
 
 // COMMAND ----------
 
-val columns = messageAll.columns ++ Array("norm_anomaly_score")
+// Make predictions
+val anomalies = model.transform(messageAll)
+//.filter("prediction == 1")
 
-val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
-val anomalies = model
-  .transform(messageAll)
-  .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
-  .filter("norm_anomaly_score > 0.0001")
-  .select(columns.map(col): _*)
+// val columns = messageAll.columns ++ Array("norm_anomaly_score")
+
+// val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
+// val anomalies = model
+//   .transform(messageAll)
+//   .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
+//   .filter("norm_anomaly_score > 0.0001")
+//   .select(columns.map(col): _*)
 
 // COMMAND ----------
 
@@ -141,15 +145,15 @@ val anomalies = model
 
 // COMMAND ----------
 
-// // Output to console
-// var query = anomalies
-//   .select("id", "norm_anomaly_score") //filter for easy viewing
-//   .writeStream
-//   .outputMode("append")
-//   .format("console")
-//   .option("truncate", false)
-//   .start()
-// query.awaitTermination()
+// Output to console
+var query = anomalies
+  .select("id", "probability", "prediction") //filter for easy viewing
+  .writeStream
+  .outputMode("append")
+  .format("console")
+  .option("truncate", false)
+  .start()
+query.awaitTermination()
 
 // COMMAND ----------
 
