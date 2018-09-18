@@ -86,7 +86,6 @@ unlabeled_df.write.csv(storage_mount_path + '/data/for_streaming/kddcup.testdata
 # MAGIC LOCATION '/mnt/blob_storage/data/for_streaming/kddcup.data/'
 # MAGIC OPTIONS ("header"="false");
 # MAGIC 
-# MAGIC -- LACE: TODO, convert to databricks delta
 # MAGIC DROP TABLE IF EXISTS kdd;
 # MAGIC CREATE TABLE kdd 
 # MAGIC USING org.apache.spark.sql.parquet
@@ -157,7 +156,6 @@ unlabeled_df.write.csv(storage_mount_path + '/data/for_streaming/kddcup.testdata
 # MAGIC LOCATION '/mnt/blob_storage/data/for_streaming/kddcup.testdata.unlabeled/'
 # MAGIC OPTIONS ("header"="false");
 # MAGIC 
-# MAGIC -- LACE: TODO, convert to databricks delta
 # MAGIC DROP TABLE IF EXISTS kdd_unlabeled;
 # MAGIC CREATE TABLE kdd_unlabeled 
 # MAGIC USING org.apache.spark.sql.parquet

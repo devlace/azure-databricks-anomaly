@@ -126,17 +126,7 @@ messageAll.printSchema
 // COMMAND ----------
 
 // Make predictions
-val anomalies = model.transform(messageAll)
-//.filter("prediction == 1")
-
-// val columns = messageAll.columns ++ Array("norm_anomaly_score")
-
-// val vecToDoubleUdf = udf((v: Vector) => { v.toArray(0) })
-// val anomalies = model
-//   .transform(messageAll)
-//   .withColumn("norm_anomaly_score", vecToDoubleUdf(col("norm_anomaly_score_vec")))
-//   .filter("norm_anomaly_score > 0.0001")
-//   .select(columns.map(col): _*)
+val anomalies = model.transform(messageAll).filter("prediction == 1")
 
 // COMMAND ----------
 

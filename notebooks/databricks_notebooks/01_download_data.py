@@ -8,6 +8,8 @@
 storage_account = dbutils.secrets.get(scope = "storage_scope", key = "storage_account")
 storage_key = dbutils.secrets.get(scope = "storage_scope", key = "storage_key")
 
+# COMMAND ----------
+
 # Set mount path
 storage_mount_path = "/mnt/blob_storage"
 

@@ -39,8 +39,6 @@ val features = columns -- Set("id", "label", "is_anomaly")
 val categoricalFeatures = Set("protocol_type", "service", "flag")
 val continuousFeatures = features -- categoricalFeatures
 
-// Split
-val Array(training, test) = cleanDf.randomSplit(Array(0.8, 0.2), seed = 123)
 
 // COMMAND ----------
 
@@ -140,6 +138,9 @@ println(s"Test Error = ${(1.0 - gbtAccuracy)}")
 
 // COMMAND ----------
 
+// Using non-transformed data (cleanDf)
+val Array(training, test) = cleanDf.randomSplit(Array(0.8, 0.2), seed = 123)
+
 // Train a RandomForest model.
 val rf = new RandomForestClassifier()
   .setLabelCol("label_index")
@@ -217,6 +218,9 @@ println(s"Test Error = ${(1.0 - lrCvAccuracy)}")
 
 // MAGIC %md
 // MAGIC ## Save models
+// MAGIC - Saving Data Scientist work
+// MAGIC - Compose models and train in a different cluster
+// MAGIC - Productionizing ML models
 
 // COMMAND ----------
 
