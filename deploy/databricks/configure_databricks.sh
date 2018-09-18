@@ -106,7 +106,7 @@ _main() {
     echo "Performing initial ETL of data. This may take a while as cluster spins up..."
     wait_for_run $(databricks runs submit --json-file "./config/run.etl.config.json" | jq -r ".run_id" )
     echo "Training anomaly model. This may take a while as cluster spins up..."
-    wait_for_run $(databricks runs submit --json-file "./config/run.trainmodel.config.json" | jq -r ".run_id" )
+    wait_for_run $(databricks runs submit --json-file "./config/run.trainmodelall.config.json" | jq -r ".run_id" )
 
     # Schedule and run jobs
     databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamdatagen.config.json" | jq ".job_id")
