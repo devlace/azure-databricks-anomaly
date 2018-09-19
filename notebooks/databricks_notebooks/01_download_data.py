@@ -67,8 +67,10 @@ def download_and_uncompress_gz(data_url, out_file):
 # Note that Azure Databricks configures each cluster node with a FUSE mount that allows processes running on cluster nodes to read and write to the underlying
 # distributed storage layer with local file APIs
 # See here: https://docs.azuredatabricks.net/user-guide/dbfs-databricks-file-system.html#access-dbfs-using-local-file-apis
-download_and_uncompress_gz(data_url='https://archive.ics.uci.edu/ml/machine-learning-databases/kddcup99-mld/kddcup.data.gz',
-                          out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.data.csv')
+# 'https://archive.ics.uci.edu/ml/machine-learning-databases/kddcup99-mld/kddcup.data.gz'
+download_and_uncompress_gz(data_url='https://lacedemodata.blob.core.windows.net/data/kddcup.data.gz',
+                           out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.data.csv')
 
-download_and_uncompress_gz(data_url='http://kdd.ics.uci.edu/databases/kddcup99/kddcup.testdata.unlabeled.gz',
-                          out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.testdata.unlabeled.csv')
+# 'http://kdd.ics.uci.edu/databases/kddcup99/kddcup.testdata.unlabeled.gz'
+download_and_uncompress_gz(data_url='https://lacedemodata.blob.core.windows.net/data/kddcup.testdata.unlabeled.gz',
+                           out_file='/dbfs' + storage_mount_path + '/data/raw/kddcup.testdata.unlabeled.csv')
