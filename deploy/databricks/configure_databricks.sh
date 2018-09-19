@@ -109,11 +109,12 @@ _main() {
     wait_for_run $(databricks runs submit --json-file "./config/run.trainmodelall.config.json" | jq -r ".run_id" )
 
     # Schedule and run jobs
-    # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamdatagen.config.json" | jq ".job_id")
+    echo "Scheduling and running jobs..."
     databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamscoring.config.json" | jq ".job_id")
     databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.batchscoring.config.json" | jq ".job_id")
 
     # Create initial cluster, if not yet exists
+    echo "Creating an interactive cluster..."
     cluster_name=$(cat $cluster_config | jq -r ".cluster_name")
     if cluster_exists $cluster_name; then 
         echo "Cluster ${cluster_name} already exists!"
@@ -123,6 +124,7 @@ _main() {
     fi
 
     # Install Library
+    echo "Installing libraries..."
     cluster_id=$(databricks clusters list | awk '/'$cluster_name'/ {print $1}')
     databricks libraries install --maven-coordinates com.microsoft.azure:azure-eventhubs-spark_2.11:2.3.2 --cluster-id $cluster_id
 
