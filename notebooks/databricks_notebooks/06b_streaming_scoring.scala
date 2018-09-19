@@ -136,14 +136,14 @@ val anomalies = model.transform(messageAll).filter("prediction == 1")
 // COMMAND ----------
 
 // Output to console
-var query = anomalies
-  .select("id", "probability", "prediction") //filter for easy viewing
-  .writeStream
-  .outputMode("append")
-  .format("console")
-  .option("truncate", false)
-  .start()
-query.awaitTermination()
+// var query = anomalies
+//   .select("id", "probability", "prediction") //filter for easy viewing
+//   .writeStream
+//   .outputMode("append")
+//   .format("console")
+//   .option("truncate", false)
+//   .start()
+// query.awaitTermination()
 
 // COMMAND ----------
 

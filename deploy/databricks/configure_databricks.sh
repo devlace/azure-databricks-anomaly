@@ -109,7 +109,7 @@ _main() {
     wait_for_run $(databricks runs submit --json-file "./config/run.trainmodelall.config.json" | jq -r ".run_id" )
 
     # Schedule and run jobs
-    databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamdatagen.config.json" | jq ".job_id")
+    # databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamdatagen.config.json" | jq ".job_id")
     databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.streamscoring.config.json" | jq ".job_id")
     databricks jobs run-now --job-id $(databricks jobs create --json-file "./config/job.batchscoring.config.json" | jq ".job_id")
 
