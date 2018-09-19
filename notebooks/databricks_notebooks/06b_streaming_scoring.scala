@@ -151,7 +151,7 @@ val anomalies = model.transform(messageAll).filter("prediction == 1")
 val anomalies_wrapper = anomalies.select(to_json(
   struct(
     $"id",
-    $"norm_anomaly_score")).alias("body"))
+    $"probability")).alias("body"))
 
 val query =
   anomalies_wrapper
@@ -159,7 +159,7 @@ val query =
     .format("eventhubs")
     .outputMode("update")
     .options(anomEhConf.toMap)
-    .trigger(ProcessingTime("25 seconds"))
+    .trigger(ProcessingTime("10 seconds"))
     .option("checkpointLocation", s"$data_path/checkpoints/anomalies/")
     .start()
 
