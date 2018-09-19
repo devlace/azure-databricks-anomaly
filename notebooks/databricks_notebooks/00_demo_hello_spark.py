@@ -48,7 +48,13 @@ df.createOrReplaceTempView("temp_df")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Transformation
+# MAGIC ## Transformation and Actions
+# MAGIC ![Transformation and Actions](files/images/transformation_and_actions.PNG)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Transformation
 
 # COMMAND ----------
 
@@ -60,7 +66,7 @@ df_agg = df\
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Action
+# MAGIC #### Action
 
 # COMMAND ----------
 

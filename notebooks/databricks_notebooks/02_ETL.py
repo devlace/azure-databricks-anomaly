@@ -1,8 +1,5 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Prepare Data
-
-# COMMAND ----------
+# Prepare data
 
 from pyspark.sql.functions import monotonically_increasing_id, lit, concat
 
