@@ -1,7 +1,7 @@
 {
     "run_name": "Perform ETL (SparkSQL tables)",
     "new_cluster": {
-        "spark_version": "4.3.x-scala2.11",
+        "spark_version": "5.5.x-scala2.11",
         "node_type_id": "Standard_DS12_v2",
         "num_workers": 1,
         "spark_env_vars": {
